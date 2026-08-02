@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Canonical, general-purpose permission surface for every Comfort domain system service
+    (hvac, seat, ...). Concrete domains declare their own, more specific permission(s) in their
+    own AndroidManifest.xml (see service/comfort/hvac/AndroidManifest.xml) and require BOTH the
+    general permission below and their domain-specific one on their <service> element.
+
+    NOTE: base-comfort-manager / base-comfort-service build as plain `java_library` modules
+    today (see Android.bp), so this manifest is not merged automatically by Soong. It is the
+    single source of truth for the permission names every domain manifest must reuse verbatim.
+    Wiring real manifest merging would mean converting those modules to `android_library`.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.kpit.comfort.base">
+
+    <!-- Required to bind ANY Comfort domain system service (HvacService, SeatService, ...). -->
+    <permission
+        android:name="com.kpit.comfort.permission.BIND_COMFORT_SERVICE"
+        android:protectionLevel="signature" />
+
+    <!-- Required to invoke property get/set calls on a Comfort domain service once bound. -->
+    <permission
+        android:name="com.kpit.comfort.permission.ACCESS_COMFORT_SERVICE"
+        android:protectionLevel="signature" />
+
+    <uses-permission android:name="com.kpit.comfort.permission.ACCESS_COMFORT_SERVICE" />
+
+</manifest>
