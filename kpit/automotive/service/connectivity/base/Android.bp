@@ -1,0 +1,54 @@
+package {
+    default_applicable_licenses: ["Android-Apache-2.0"],
+}
+
+// -----------------------------------------------------------------------------------------------
+// Carries service/connectivity/base/AndroidManifest.xml so its general, signature-level
+// Connectivity permissions (BIND_CONNECTIVITY_SERVICE / ACCESS_CONNECTIVITY_SERVICE — mirrors
+// instruction.md IV.4's Comfort pattern) are merged for real by Soong into any domain app that
+// lists this as a static_lib (e.g. bluetooth-service). No sources/resources of its own;
+// base-connectivity-manager/-service stay plain java_library since only the manifest needs
+// merging, not their classes as an AAR.
+// -----------------------------------------------------------------------------------------------
+android_library {
+    name: "base-connectivity-permissions",
+    manifest: "AndroidManifest.xml",
+    resource_dirs: [],
+    sdk_version: "system_current",
+    visibility: [
+        "//vendor/kpit/automotive:__subpackages__",
+    ],
+}
+
+// -----------------------------------------------------------------------------------------------
+// Manager SDK: the only base_connectivity surface HMI apps and concrete domain managers
+// (IviBluetoothManager, WifiManager, ...) are allowed to depend on directly. Pure Java.
+// No sdk_version: this class calls android.os.ServiceManager.getService() directly (restricted
+// @SystemApi, not reliably present in the system_current stub jar), so it needs the full
+// platform classpath, same reasoning as base-comfort-manager (instruction.md IV.6).
+// -----------------------------------------------------------------------------------------------
+java_library {
+    name: "base-connectivity-manager",
+    srcs: ["src/com/kpit/connectivity/base/manager/BaseConnectivityManager.java"],
+    installable: false,
+    visibility: [
+        "//vendor/kpit/automotive:__subpackages__",
+    ],
+}
+
+// -----------------------------------------------------------------------------------------------
+// Service base: hosts the ExecutorService/RemoteCallbackList plumbing shared by every
+// Connectivity domain service. Unlike base-comfort-service, there is NO native/JNI/VHAL bridge
+// here and no cc_library_shared dependency — Connectivity domains (Bluetooth, WiFi) talk to
+// Android's own framework/hidden APIs directly (BluetoothHeadsetClient, BluetoothA2dpSink, ...),
+// never vps::VpsDispatcher. See instruction.md section VI ("no VHAL/JNI").
+// -----------------------------------------------------------------------------------------------
+java_library {
+    name: "base-connectivity-service",
+    srcs: ["src/com/kpit/connectivity/base/service/BaseConnectivityService.java"],
+    sdk_version: "system_current",
+    installable: false,
+    visibility: [
+        "//vendor/kpit/automotive:__subpackages__",
+    ],
+}

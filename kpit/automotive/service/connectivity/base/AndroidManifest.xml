@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Canonical, general-purpose permission surface for every Connectivity domain system service
+    (bluetooth, wifi, ...). Concrete domains declare their own, more specific permission(s) in
+    their own AndroidManifest.xml (see service/connectivity/bluetooth/AndroidManifest.xml) and
+    require BOTH the general permission below and their domain-specific one on their <service>
+    element — mirrors service/comfort/base/AndroidManifest.xml (instruction.md IV.4).
+
+    Merged for real into any domain android_app that lists base-connectivity-permissions in
+    static_libs (see Android.bp).
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.kpit.connectivity.base">
+
+    <!-- Required to bind ANY Connectivity domain system service (IviBluetoothService, WifiService, ...). -->
+    <permission
+        android:name="com.kpit.connectivity.permission.BIND_CONNECTIVITY_SERVICE"
+        android:protectionLevel="signature" />
+
+    <!-- Required to invoke commands/queries on a Connectivity domain service once bound. -->
+    <permission
+        android:name="com.kpit.connectivity.permission.ACCESS_CONNECTIVITY_SERVICE"
+        android:protectionLevel="signature" />
+
+    <uses-permission android:name="com.kpit.connectivity.permission.ACCESS_CONNECTIVITY_SERVICE" />
+
+</manifest>
