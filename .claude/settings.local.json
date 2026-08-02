@@ -14,7 +14,11 @@
       "Bash(xargs -I{} echo {})",
       "Bash(xargs -I{} sh -c 'unzip -l \"{}\" 2>/dev/null | grep -q \"BluetoothHeadsetClient\" && echo {}')",
       "Bash(grep -iE \"vbmeta|super|\\\\.img$\")",
-      "Bash(./pack_emulator.sh)"
+      "Bash(./pack_emulator.sh)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git checkout *)",
+      "Bash(git merge *)"
     ]
   }
 }
