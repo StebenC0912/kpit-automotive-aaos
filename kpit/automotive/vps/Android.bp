@@ -1,0 +1,27 @@
+package {
+    default_applicable_licenses: ["Android-Apache-2.0"],
+}
+
+// -----------------------------------------------------------------------------------------------
+// COMPONENT 3 (instruction.md section I.3): the polymorphic Hardware/Middleware layer.
+// VpsDispatcher owns zero domain knowledge -- it just routes get/set/subscribe calls by propId to
+// whichever registered IVpsHandler (HvacHandler; SeatHandler once Seat is implemented) claims that
+// property. Called in-process, directly, from base_comfort_jni's base_comfort_vhal_jni.cpp
+// (section II steps 5-6) -- no Binder/HAL service registration involved.
+// -----------------------------------------------------------------------------------------------
+cc_library_shared {
+    name: "libvps",
+    export_include_dirs: ["include"],
+    srcs: [
+        "src/VpsDispatcher.cpp",
+        "src/HvacHandler.cpp",
+    ],
+    shared_libs: [
+        "liblog",
+    ],
+    cflags: [
+        "-Wall",
+        "-Werror",
+        "-Wextra",
+    ],
+}
