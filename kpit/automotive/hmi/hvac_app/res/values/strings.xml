@@ -1,0 +1,22 @@
+<resources>
+    <string name="app_name">HVACSystem</string>
+    <string name="ac">AC</string>
+    <string name="max">Max</string>
+    <string name="air_recycle">Air recycle</string>
+    <string name="low_fan_speed">Low Fan Speed</string>
+    <string name="down_temp_button">Down temp button</string>
+    <string name="up_temp_button">Up temp button</string>
+    <string name="default_temp">20</string>
+    <string name="left_heating">left heating</string>
+    <string name="foot_normal">foot normal</string>
+    <string name="high_fan_button">high fan button</string>
+    <string name="sync_button">sync button</string>
+    <string name="feet_and_face_ventilation">feet and face ventilation</string>
+    <string name="auto_button">auto button</string>
+    <string name="face_ventilation">face ventilation</string>
+    <string name="defrost_button">defrost button</string>
+    <string name="right_heating">right heating</string>
+    <string name="fan_speed">fan speed</string>
+    <string name="temp_left">Temp left</string>
+    <string name="right_temp">Right Temp</string>
+</resources>
