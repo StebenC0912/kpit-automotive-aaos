@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(bash -c ' *)",
+      "Bash(unzip -l aosp_image/car_emu_pkg.zip)",
+      "Read(//tmp/ramdisk_check/**)",
+      "Bash(xxd ramdisk.img)",
+      "Bash(lz4 -d ramdisk.img ramdisk.cpio -f)",
+      "Bash(mkdir -p extracted2)",
+      "Bash(cpio -idm)",
+      "Bash(python3 -)",
+      "Bash(timeout 60 grep -rn \"PRODUCT_NAME := emulator_car_x86_64\\\\|PRODUCT_NAME:=emulator_car_x86_64\" /config/workspace/android_auto_os/device /config/workspace/android_auto_os/vendor --include=\"*.mk\")",
+      "Bash(echo \"exit=$?\")",
+      "Bash(xargs -I{} echo {})",
+      "Bash(xargs -I{} sh -c 'unzip -l \"{}\" 2>/dev/null | grep -q \"BluetoothHeadsetClient\" && echo {}')",
+      "Bash(grep -iE \"vbmeta|super|\\\\.img$\")",
+      "Bash(./pack_emulator.sh)"
+    ]
+  }
+}
