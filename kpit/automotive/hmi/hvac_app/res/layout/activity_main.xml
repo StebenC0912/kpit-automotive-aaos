@@ -1,0 +1,365 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/hvac_main_bg"
+    android:gravity="center"
+    android:orientation="vertical"
+    android:padding="32dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="@dimen/normal_margin"
+        android:background="@drawable/center_bg"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:showDividers="middle">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/normal_margin"
+            android:gravity="center"
+            android:orientation="horizontal">
+
+            <ImageButton
+                android:id="@+id/btnAc"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:background="@android:color/transparent"
+                android:contentDescription="@string/ac"
+                android:src="@drawable/selector_ac" />
+
+            <ImageButton
+                android:id="@+id/btnMax"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:background="@android:color/transparent"
+                android:contentDescription="@string/max"
+                android:src="@drawable/selector_max" />
+
+            <ImageButton
+                android:id="@+id/btnCycle"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:background="@android:color/transparent"
+                android:contentDescription="@string/air_recycle"
+                android:src="@drawable/selector_cycle" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_marginBottom="@dimen/normal_margin"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:orientation="horizontal">
+
+            <ImageButton
+                android:id="@+id/btnFanDown"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="@dimen/small_margin_end"
+                android:background="@android:color/transparent"
+                android:contentDescription="@string/low_fan_speed"
+                android:src="@drawable/selector_fan_low" />
+
+            <LinearLayout
+                android:id="@+id/layoutFanSpeed"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content">
+
+                <ImageView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="@dimen/small_margin_end"
+                    android:background="@android:color/transparent"
+                    android:contentDescription="@string/fan_speed"
+                    android:src="@drawable/selector_fan_speed" />
+
+                <ImageView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="@dimen/small_margin_end"
+                    android:background="@android:color/transparent"
+                    android:contentDescription="@string/fan_speed"
+                    android:src="@drawable/selector_fan_speed" />
+
+                <ImageView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="@dimen/small_margin_end"
+                    android:background="@android:color/transparent"
+                    android:contentDescription="@string/fan_speed"
+                    android:src="@drawable/selector_fan_speed" />
+
+                <ImageView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="@dimen/small_margin_end"
+                    android:background="@android:color/transparent"
+                    android:contentDescription="@string/fan_speed"
+                    android:src="@drawable/selector_fan_speed" />
+
+                <ImageView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="@dimen/small_margin_end"
+                    android:background="@android:color/transparent"
+                    android:contentDescription="@string/fan_speed"
+                    android:src="@drawable/selector_fan_speed" />
+
+                <ImageView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="@dimen/small_margin_end"
+                    android:background="@android:color/transparent"
+                    android:contentDescription="@string/fan_speed"
+                    android:src="@drawable/selector_fan_speed" />
+
+                <ImageView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="@dimen/small_margin_end"
+                    android:background="@android:color/transparent"
+                    android:contentDescription="@string/fan_speed"
+                    android:src="@drawable/selector_fan_speed" />
+
+                <ImageView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="@dimen/small_margin_end"
+                    android:background="@android:color/transparent"
+                    android:contentDescription="@string/fan_speed"
+                    android:src="@drawable/selector_fan_speed" />
+
+                <ImageView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="@dimen/small_margin_end"
+                    android:background="@android:color/transparent"
+                    android:contentDescription="@string/fan_speed"
+                    android:src="@drawable/selector_fan_speed" />
+
+                <ImageView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="@dimen/small_margin_end"
+                    android:background="@android:color/transparent"
+                    android:contentDescription="@string/fan_speed"
+                    android:src="@drawable/selector_fan_speed" />
+
+                <ImageView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="@dimen/small_margin_end"
+                    android:background="@android:color/transparent"
+                    android:contentDescription="@string/fan_speed"
+                    android:src="@drawable/selector_fan_speed" />
+
+                <ImageView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="@dimen/small_margin_end"
+                    android:background="@android:color/transparent"
+                    android:contentDescription="@string/fan_speed"
+                    android:src="@drawable/selector_fan_speed" />
+            </LinearLayout>
+
+            <ImageButton
+                android:id="@+id/btnFanUp"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="@dimen/small_margin_end"
+                android:background="@android:color/transparent"
+                android:contentDescription="@string/high_fan_button"
+                android:src="@drawable/selector_fan_high" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="@dimen/normal_margin"
+            android:gravity="center"
+            android:orientation="horizontal">
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="@dimen/normal_margin"
+                android:layout_weight="1"
+                android:gravity="center">
+
+                <ImageButton
+                    android:id="@+id/btnTempLeftDown"
+                    android:layout_width="90dp"
+                    android:layout_height="90dp"
+                    android:background="@android:color/transparent"
+                    android:contentDescription="@string/down_temp_button"
+                    android:gravity="center"
+                    android:scaleType="fitCenter"
+                    android:src="@drawable/selector_temp_down" />
+
+                <TextView
+                    android:id="@+id/tempLeft"
+                    android:layout_width="90dp"
+                    android:layout_height="90dp"
+                    android:contentDescription="@string/temp_left"
+                    android:gravity="center"
+                    android:text="@string/default_temp"
+                    android:textSize="56sp"
+                    android:textStyle="bold" />
+
+                <ImageButton
+                    android:id="@+id/btnTempLeftUp"
+                    android:layout_width="90dp"
+                    android:layout_height="90dp"
+                    android:background="@android:color/transparent"
+                    android:contentDescription="@string/up_temp_button"
+                    android:scaleType="fitCenter"
+                    android:src="@drawable/selector_temp_up" />
+            </LinearLayout>
+
+            <ImageButton
+                android:id="@+id/btnSync"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="@dimen/normal_margin"
+                android:layout_marginEnd="@dimen/normal_margin"
+                android:layout_weight="1"
+                android:background="@android:color/transparent"
+                android:contentDescription="@string/sync_button"
+                android:src="@drawable/selector_sync" />
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="@dimen/normal_margin"
+                android:layout_weight="1"
+                android:gravity="center">
+
+                <ImageButton
+                    android:id="@+id/btnTempRightDown"
+                    android:layout_width="90dp"
+                    android:layout_height="90dp"
+                    android:background="@android:color/transparent"
+                    android:contentDescription="@string/down_temp_button"
+                    android:scaleType="fitCenter"
+                    android:src="@drawable/selector_temp_down" />
+
+                <TextView
+                    android:id="@+id/tempRight"
+                    android:layout_width="90dp"
+                    android:layout_height="90dp"
+                    android:background="@android:color/transparent"
+                    android:contentDescription="@string/right_temp"
+                    android:gravity="center"
+                    android:text="@string/default_temp"
+                    android:textSize="56sp"
+                    android:textStyle="bold" />
+
+                <ImageButton
+                    android:id="@+id/btnTempRightUp"
+                    android:layout_width="90dp"
+                    android:layout_height="90dp"
+                    android:background="@android:color/transparent"
+                    android:contentDescription="@string/up_temp_button"
+                    android:scaleType="fitCenter"
+                    android:src="@drawable/selector_temp_up" />
+            </LinearLayout>
+        </LinearLayout>
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="match_parent"
+        android:background="@drawable/bottom_bg"
+        android:gravity="center"
+        android:paddingHorizontal="@dimen/normal_padding"
+        android:paddingVertical="@dimen/small_padding">
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_weight="0.5"
+            android:gravity="center">
+
+            <ImageButton
+                android:id="@+id/btnHeatingLeft"
+                android:layout_width="wrap_content"
+                android:layout_height="match_parent"
+                android:background="@android:color/transparent"
+                android:contentDescription="@string/left_heating"
+                android:scaleType="fitCenter"
+                android:src="@drawable/seat_left_normal" />
+
+            <ImageButton
+                android:id="@+id/btnVentilationFoot"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="@dimen/normal_padding"
+                android:background="@android:color/transparent"
+                android:contentDescription="@string/foot_normal"
+                android:scaleType="fitCenter"
+                android:src="@drawable/foot_normal" />
+
+            <ImageButton
+                android:id="@+id/btnVentilationFootAndFace"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="@android:color/transparent"
+                android:contentDescription="@string/feet_and_face_ventilation"
+                android:scaleType="fitCenter"
+                android:src="@drawable/face_foot_normal" />
+        </LinearLayout>
+
+        <ImageButton
+            android:id="@+id/btnAuto"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:background="@android:color/transparent"
+            android:contentDescription="@string/auto_button"
+            android:scaleType="fitCenter"
+            android:src="@drawable/selector_auto" />
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_weight="0.5"
+            android:gravity="center">
+
+            <ImageButton
+                android:id="@+id/btnVentilationFace"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="@android:color/transparent"
+                android:contentDescription="@string/face_ventilation"
+                android:scaleType="fitCenter"
+                android:src="@drawable/face_normal" />
+
+            <ImageButton
+                android:id="@+id/btnDefrost"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="@dimen/normal_padding"
+                android:background="@android:color/transparent"
+                android:contentDescription="@string/defrost_button"
+                android:scaleType="fitCenter"
+                android:src="@drawable/defrost_normal" />
+
+            <ImageButton
+                android:id="@+id/btnHeatingRight"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="@android:color/transparent"
+                android:contentDescription="@string/right_heating"
+                android:scaleType="fitCenter"
+                android:src="@drawable/seat_right_normal" />
+        </LinearLayout>
+    </LinearLayout>
+</LinearLayout>

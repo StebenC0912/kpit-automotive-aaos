@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <dimen name="margin_space">40dp</dimen>
+    <dimen name="normal_margin">24dp</dimen>
+    <dimen name="small_margin">8dp</dimen>
+    <dimen name="small_margin_end">16dp</dimen>
+    <dimen name="small_padding">8dp</dimen>
+    <dimen name="normal_padding">24dp</dimen>
+
+</resources>
