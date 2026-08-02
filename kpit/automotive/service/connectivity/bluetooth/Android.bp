@@ -1,0 +1,68 @@
+package {
+    default_applicable_licenses: ["Android-Apache-2.0"],
+}
+
+// -----------------------------------------------------------------------------------------------
+// Bluetooth Manager SDK + AIDL: the only bluetooth surface HMI apps (bluetooth_app) are allowed to
+// depend on. Split out from bluetooth-service so the Manager SDK is a real, separately-compilable
+// artifact per section I's "Manager SDK client API" requirement, mirrors hvac-manager-sdk.
+// -----------------------------------------------------------------------------------------------
+java_library {
+    name: "bluetooth-manager-sdk",
+    srcs: [
+        "src/com/kpit/bluetooth/manager/**/*.java",
+        "aidl/com/kpit/bluetooth/*.aidl",
+        "aidl/com/kpit/bluetooth/manager/*.aidl",
+    ],
+    aidl: {
+        local_include_dirs: ["aidl"],
+    },
+    static_libs: [
+        "base-connectivity-manager",
+    ],
+    installable: false,
+    visibility: [
+        "//vendor/kpit/automotive:__subpackages__",
+    ],
+}
+
+// -----------------------------------------------------------------------------------------------
+// Bluetooth domain: System Service, privileged system app. Depends on bluetooth-manager-sdk for
+// the AIDL stubs + parcelables, and base-connectivity-service/-permissions for the
+// Binder-reconnect/thread-pool plumbing + general Connectivity permissions (instruction.md IV.4).
+// platform_apis (not sdk_version) needed for TWO reasons, not just one: onCreate() calls
+// ServiceManager.addService() directly (same restricted @SystemApi reasoning as hvac-service,
+// IV.6), AND BluetoothHeadsetClient/BluetoothA2dpSink/BluetoothAvrcpController are hidden
+// @SystemApi classes not present in any sdk_version stub jar (section VI build note).
+// -----------------------------------------------------------------------------------------------
+android_app {
+    name: "bluetooth-service",
+    srcs: [
+        "src/com/kpit/bluetooth/service/**/*.java",
+    ],
+    static_libs: [
+        "bluetooth-manager-sdk",
+        "base-connectivity-permissions",
+        "base-connectivity-service",
+    ],
+    manifest: "AndroidManifest.xml",
+    resource_dirs: [],
+    platform_apis: true,
+    certificate: "platform",
+    privileged: true,
+    optimize: {
+        enabled: false,
+    },
+}
+
+// -----------------------------------------------------------------------------------------------
+// Allowlists android.permission.BLUETOOTH_PRIVILEGED (signature|privileged) for com.kpit.bluetooth
+// - required for a privileged system app to actually retain a signature|privileged platform
+// permission at install time. See privapp_permissions_bluetooth.xml for why this is the only
+// KPIT module that needs one.
+// -----------------------------------------------------------------------------------------------
+prebuilt_etc {
+    name: "privapp_permissions_bluetooth.xml",
+    src: "privapp_permissions_bluetooth.xml",
+    sub_dir: "permissions",
+}
