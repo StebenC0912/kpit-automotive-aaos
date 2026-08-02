@@ -1,0 +1,56 @@
+package {
+    default_applicable_licenses: ["Android-Apache-2.0"],
+}
+
+// -----------------------------------------------------------------------------------------------
+// HVAC Manager SDK + AIDL: the only hvac surface HMI apps (hvac_app) are allowed to depend on.
+// Split out from hvac-service so the Manager SDK is a real, separately-compilable artifact per
+// section I's "Manager SDK client API" requirement, instead of being locked inside the system
+// service's own APK where hvac_app couldn't reach it.
+// -----------------------------------------------------------------------------------------------
+java_library {
+    name: "hvac-manager-sdk",
+    srcs: [
+        "src/com/kpit/hvac/HvacEvent.java",
+        "src/com/kpit/hvac/manager/**/*.java",
+        "aidl/com/kpit/hvac/*.aidl",
+    ],
+    aidl: {
+        local_include_dirs: ["aidl"],
+    },
+    static_libs: [
+        "base-comfort-manager",
+        "androidx.annotation_annotation",
+    ],
+    installable: false,
+    visibility: [
+        "//vendor/kpit/automotive:__subpackages__",
+    ],
+}
+
+// -----------------------------------------------------------------------------------------------
+// HVAC domain: System Service, privileged system app. Depends on hvac-manager-sdk for the AIDL
+// stubs + shared HvacEvent parcelable, and base-comfort-service/-permissions for the
+// Binder-reconnect/thread-pool/JNI plumbing + general Comfort permissions (instruction.md IV.4).
+// platform_apis (not sdk_version) because onCreate() calls ServiceManager.addService() directly
+// — same restricted @SystemApi reasoning as base-comfort-manager and hvac_app (IV.6).
+// -----------------------------------------------------------------------------------------------
+android_app {
+    name: "hvac-service",
+    srcs: [
+        "src/com/kpit/hvac/service/**/*.java",
+    ],
+    static_libs: [
+        "hvac-manager-sdk",
+        "base-comfort-permissions",
+        "base-comfort-service",
+    ],
+    manifest: "AndroidManifest.xml",
+    resource_dirs: [],
+    platform_apis: true,
+    certificate: "platform",
+    privileged: true,
+    optimize: {
+        enabled: false,
+    },
+}

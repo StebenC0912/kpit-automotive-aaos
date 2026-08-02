@@ -1,0 +1,74 @@
+package {
+    default_applicable_licenses: ["Android-Apache-2.0"],
+}
+
+// -----------------------------------------------------------------------------------------------
+// Carries service/comfort/base/AndroidManifest.xml so its general, signature-level Comfort
+// permissions (BIND_COMFORT_SERVICE / ACCESS_COMFORT_SERVICE — see instruction.md IV.4) are
+// merged for real by Soong into any domain app that lists this as a static_lib (e.g.
+// hvac-service). No sources/resources of its own; base-comfort-manager/-service stay plain
+// java_library since only the manifest needs merging, not their classes as an AAR.
+// -----------------------------------------------------------------------------------------------
+android_library {
+    name: "base-comfort-permissions",
+    manifest: "AndroidManifest.xml",
+    resource_dirs: [],
+    sdk_version: "system_current",
+    visibility: [
+        "//vendor/kpit/automotive:__subpackages__",
+    ],
+}
+
+// -----------------------------------------------------------------------------------------------
+// Manager SDK: the only base_comfort surface HMI apps and concrete domain managers/services
+// (HvacManager, SeatManager, ...) are allowed to depend on directly. Pure Java, no JNI.
+// No sdk_version: this class calls android.os.ServiceManager.getService() directly (restricted
+// @SystemApi, not reliably present in the system_current stub jar), so it needs the full
+// platform classpath, same reasoning as `platform_apis: true` on the android_app modules that
+// depend on it transitively (hvac-service, hvac_app — see instruction.md IV.6).
+// -----------------------------------------------------------------------------------------------
+java_library {
+    name: "base-comfort-manager",
+    srcs: ["src/com/kpit/comfort/base/manager/**/*.java"],
+    installable: false,
+    visibility: [
+        "//vendor/kpit/automotive:__subpackages__",
+    ],
+}
+
+// -----------------------------------------------------------------------------------------------
+// Service base: hosts the ExecutorService/RemoteCallbackList plumbing and declares the native
+// methods bridged by libbase_comfort_jni. Concrete domain services (HvacService, SeatService, ...)
+// extend BaseComfortService<T> and never touch JNI directly.
+// -----------------------------------------------------------------------------------------------
+java_library {
+    name: "base-comfort-service",
+    srcs: ["src/com/kpit/comfort/base/service/**/*.java"],
+    sdk_version: "system_current",
+    installable: false,
+    required: ["libbase_comfort_jni"],
+    visibility: [
+        "//vendor/kpit/automotive:__subpackages__",
+    ],
+}
+
+// -----------------------------------------------------------------------------------------------
+// JNI bridge shared by every Comfort domain service. Calls straight into vps::VpsDispatcher
+// (libvps.so, Component 3 -- see vendor/kpit/automotive/vps/) in-process, behind the blocking
+// get/set/subscribe surface BaseComfortService calls into from its ExecutorService worker
+// threads. See instruction.md section II steps 5-6 and IV.6-adjacent build note on VpsDispatcher.
+// -----------------------------------------------------------------------------------------------
+cc_library_shared {
+    name: "libbase_comfort_jni",
+    srcs: ["jni/base_comfort_vhal_jni.cpp"],
+    header_libs: ["jni_headers"],
+    shared_libs: [
+        "liblog",
+        "libvps",
+    ],
+    cflags: [
+        "-Wall",
+        "-Werror",
+        "-Wextra",
+    ],
+}

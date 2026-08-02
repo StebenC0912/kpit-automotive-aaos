@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Bluetooth domain manifest. Inherits the general Connectivity permission surface declared in
+    service/connectivity/base/AndroidManifest.xml (com.kpit.connectivity.permission.ACCESS_CONNECTIVITY_SERVICE)
+    and layers on a Bluetooth-specific bind permission so IviBluetoothService can be gated
+    independently of other Connectivity domains (wifi, ...) that share the same general permission
+    — mirrors service/comfort/hvac/AndroidManifest.xml (instruction.md IV.4).
+
+    Also declares the Bluetooth-specific permissions from instruction.md section VI:
+    BLUETOOTH_PRIVILEGED is load-bearing — required just to obtain BluetoothHeadsetClient /
+    BluetoothA2dpSink proxies and call their hidden connect()/disconnect() methods at all.
+    Available because IviBluetoothService runs with sharedUserId="android.uid.system" (rule IV.3).
+
+    MEDIA_CONTENT_CONTROL (signature|privileged, frameworks/base/core/res/AndroidManifest.xml) is
+    likewise load-bearing for AVRCP: BluetoothAvrcpController carries no @SystemApi at all in this
+    AOSP version (module-internal to the Bluetooth mainline module, unreachable from here — see
+    instruction.md section V), so IviBluetoothService reaches the AVRCP-backed session via
+    MediaSessionManager/MediaController instead, which this permission gates.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.kpit.bluetooth"
+    android:sharedUserId="android.uid.system">
+
+    <uses-permission android:name="com.kpit.connectivity.permission.ACCESS_CONNECTIVITY_SERVICE" />
+
+    <uses-permission android:name="android.permission.BLUETOOTH_PRIVILEGED" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <uses-permission android:name="android.permission.BLUETOOTH_SCAN" />
+    <uses-permission android:name="android.permission.MEDIA_CONTENT_CONTROL" />
+
+    <!-- Bluetooth-specific bind permission, required in addition to the general one above. -->
+    <permission
+        android:name="com.kpit.bluetooth.permission.BIND_BLUETOOTH_SERVICE"
+        android:protectionLevel="signature" />
+
+    <application android:persistent="true">
+        <service
+            android:name="com.kpit.bluetooth.service.IviBluetoothService"
+            android:permission="com.kpit.bluetooth.permission.BIND_BLUETOOTH_SERVICE"
+            android:exported="true" />
+    </application>
+
+</manifest>
