@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.kpit.hmi.bluetooth"
+    android:sharedUserId="android.uid.system">
+
+    <uses-permission android:name="com.kpit.connectivity.permission.ACCESS_CONNECTIVITY_SERVICE" />
+    <uses-permission android:name="com.kpit.bluetooth.permission.BIND_BLUETOOTH_SERVICE" />
+    <queries>
+        <package android:name="com.kpit.bluetooth" />
+    </queries>
+    <application
+        android:allowBackup="true"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="@xml/backup_rules"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.AppCompat.NoActionBar">
+        <activity
+            android:name="com.kpit.hmi.bluetooth.MainActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+
+</manifest>

@@ -1,0 +1,18 @@
+<resources>
+    <string name="app_name">bluetooth_app</string>
+    <string name="connected_device">CONNECTED DEVICE</string>
+    <string name="active_profiles_bitmask">Active Profiles (Bitmask):</string>
+    <string name="hfp">HFP</string>
+    <string name="a2dp">A2DP</string>
+    <string name="avrcp">AVRCP</string>
+    <string name="media_playback">MEDIA PLAYBACK</string>
+    <string name="song_title">Song Title</string>
+    <string name="artist_name">Artist Name</string>
+    <string name="album_title">Album Title</string>
+    <string name="prev">PREV</string>
+    <string name="play">PLAY</string>
+    <string name="pause">PAUSE</string>
+    <string name="next">NEXT</string>
+    <string name="mac_address_prefix">MAC: %1$s</string>
+    <string name="position_ms">%1$d ms</string>
+</resources>
