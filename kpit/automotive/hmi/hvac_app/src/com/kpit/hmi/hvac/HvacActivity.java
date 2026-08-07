@@ -18,8 +18,12 @@ import com.kpit.hmi.hvac.viewmodel.HvacViewModel;
 
 public class HvacActivity extends AppCompatActivity {
     private static final float INACTIVE_TOGGLE_ALPHA = 0.5f;
+    private static final int MIN_FAN_SPEED = 0;
+    private static final int MAX_FAN_SPEED = 12;
 
     private HvacViewModel hvacViewModel;
+    private boolean mIsPanelEnabled = false;
+    private int mCurrentFanSpeed = 0;
 
     private ImageButton btnAc;
     private ImageButton btnMax;
@@ -116,6 +120,17 @@ public class HvacActivity extends AppCompatActivity {
             View segment = layoutFanSpeed.getChildAt(i);
             segment.setActivated(i < hvacFanState.getFanSpeed());
         }
+        mCurrentFanSpeed = hvacFanState.getFanSpeed();
+        updateFanButtonsState();
+    }
+
+    private void updateFanButtonsState() {
+        boolean downEnabled = mIsPanelEnabled && mCurrentFanSpeed > MIN_FAN_SPEED;
+        boolean upEnabled = mIsPanelEnabled && mCurrentFanSpeed < MAX_FAN_SPEED;
+        btnFanDown.setEnabled(downEnabled);
+        btnFanDown.setAlpha(downEnabled ? 1.0f : INACTIVE_TOGGLE_ALPHA);
+        btnFanUp.setEnabled(upEnabled);
+        btnFanUp.setAlpha(upEnabled ? 1.0f : INACTIVE_TOGGLE_ALPHA);
     }
 
     private void renderHvacTempUi(HvacTempState hvacTempState) {
@@ -146,8 +161,8 @@ public class HvacActivity extends AppCompatActivity {
         float targetAlpha = isEnable ? 1.0f : 0.35f;
 
         View[] hvacControlPanel = new View[]{
-                btnMax, btnCycle, btnFanDown,
-                btnFanUp, btnTempLeftDown, btnTempLeftUp,
+                btnMax, btnCycle,
+                btnTempLeftDown, btnTempLeftUp,
                 btnSync, btnTempRightDown, btnTempRightUp,
                 btnHeatingLeft, btnVentilationFoot, btnVentilationFootAndFace,
                 btnAuto, btnVentilationFace, btnDefrost,
@@ -156,6 +171,9 @@ public class HvacActivity extends AppCompatActivity {
             view.setEnabled(isEnable);
             view.setAlpha(targetAlpha);
         }
+
+        mIsPanelEnabled = isEnable;
+        updateFanButtonsState();
     }
 
     @Override
