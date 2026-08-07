@@ -202,7 +202,7 @@ public class HvacManager extends BaseComfortManager<IHVACVehicleService> impleme
                     hvacListener.onFanSpeedChanged((int) event.getValue());
                     break;
                 case HvacProperties.PROP_TEMP:
-                    hvacListener.onTempChanged((int) event.getValue(), event.getAreaId());
+                    hvacListener.onTempChanged(event.getValue(), event.getAreaId());
                     break;
                 case HvacProperties.PROP_SYNC:
                     hvacListener.onSyncStateChanged(event.getValue() != 0);

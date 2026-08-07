@@ -9,7 +9,7 @@ public interface HvacListener {
 
     void onAirRecycleStateChanged(boolean value);
 
-    void onTempChanged(int value, int area);
+    void onTempChanged(float value, int area);
 
     void onSyncStateChanged(boolean value);
 

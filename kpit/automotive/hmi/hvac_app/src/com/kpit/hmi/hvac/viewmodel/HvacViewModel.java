@@ -162,7 +162,7 @@ public class HvacViewModel extends AndroidViewModel implements HvacListener, Sys
     }
 
     @Override
-    public void onTempChanged(int value, int area) {
+    public void onTempChanged(float value, int area) {
         if (!mCachedOtherControlsEnable) return;
         if (area == 1) {
             mLeftTemp = value;
