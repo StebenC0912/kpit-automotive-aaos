@@ -42,19 +42,20 @@ public class HvacManager extends BaseComfortManager<IHVACVehicleService> impleme
     protected void onServiceConnected(IHVACVehicleService service) {
         try {
             service.registerCallback(mBinderCallback);
-            Log.d(TAG, "Register successfully");
+            Log.d(TAG, "onServiceConnected: registered callback successfully");
         } catch (RemoteException e) {
-            Log.e(TAG, "Cannot register callback", e);
+            Log.e(TAG, "onServiceConnected: cannot register callback", e);
         }
     }
 
     @Override
     protected void onServiceDisconnected() {
-        Log.d(TAG, "Disconnect service");
+        Log.d(TAG, "onServiceDisconnected: service disconnected");
     }
 
     @Override
     public void registerSystemListener(SystemListener systemListener) {
+        Log.d(TAG, "registerSystemListener: " + systemListener);
         synchronized (systemListenerList) {
             if (!systemListenerList.contains(systemListener))
                 systemListenerList.add(systemListener);
@@ -67,6 +68,7 @@ public class HvacManager extends BaseComfortManager<IHVACVehicleService> impleme
     }
 
     public void unregisterSystemListener() {
+        Log.d(TAG, "unregisterSystemListener: clearing " + systemListenerList.size() + " listener(s)");
         synchronized (systemListenerList) {
             systemListenerList.clear();
         }
@@ -74,6 +76,7 @@ public class HvacManager extends BaseComfortManager<IHVACVehicleService> impleme
 
     @Override
     public void registerPropertyListener(HvacListener hvacListener) {
+        Log.d(TAG, "registerPropertyListener: " + hvacListener);
         synchronized (hvacListenerList) {
             hvacListenerList.add(hvacListener);
         }
@@ -83,6 +86,7 @@ public class HvacManager extends BaseComfortManager<IHVACVehicleService> impleme
     }
 
     public void unregisterHvacListener() {
+        Log.d(TAG, "unregisterHvacListener: clearing " + hvacListenerList.size() + " listener(s)");
         synchronized (hvacListenerList) {
             hvacListenerList.clear();
         }
@@ -146,6 +150,7 @@ public class HvacManager extends BaseComfortManager<IHVACVehicleService> impleme
     }
 
     private void setProperty(int propertyId, int areaId, float value) {
+        Log.d(TAG, "setProperty: propertyId=" + propertyId + " areaId=" + areaId + " value=" + value);
         IHVACVehicleService service = getService();
         if (service == null) {
             Log.w(TAG, "setProperty: service not connected, propertyId=" + propertyId);
@@ -154,13 +159,14 @@ public class HvacManager extends BaseComfortManager<IHVACVehicleService> impleme
         try {
             service.setVehicleProperty(propertyId, areaId, value);
         } catch (RemoteException e) {
-            Log.e(TAG, "Cannot set property " + propertyId, e);
+            Log.e(TAG, "setProperty: cannot set property " + propertyId, e);
         }
     }
 
     private final IHVACVehicleCallback.Stub mBinderCallback = new IHVACVehicleCallback.Stub() {
         @Override
         public void onChangeEvent(HvacEvent event) {
+            Log.d(TAG, "onChangeEvent: " + event);
             int id = event.getId();
             switch (id) {
                 case HvacProperties.PROP_VEHICLE_STATE:
@@ -187,6 +193,7 @@ public class HvacManager extends BaseComfortManager<IHVACVehicleService> impleme
     };
 
     private void dispatchToProperty(HvacEvent event) {
+        Log.d(TAG, "dispatchToProperty: fanning out " + event + " to " + hvacListenerList.size() + " listener(s)");
         for (HvacListener hvacListener : hvacListenerList) {
             switch (event.getId()) {
                 case HvacProperties.PROP_AC_STATE:
@@ -228,6 +235,7 @@ public class HvacManager extends BaseComfortManager<IHVACVehicleService> impleme
 
     private void dispatchToSystem(HvacEvent event) {
         int requestValue = (int) event.getValue();
+        Log.d(TAG, "dispatchToSystem: fanning out " + event + " to " + systemListenerList.size() + " listener(s)");
         for (SystemListener systemListener : systemListenerList) {
             switch (event.getId()) {
                 case HvacProperties.PROP_VEHICLE_STATE:

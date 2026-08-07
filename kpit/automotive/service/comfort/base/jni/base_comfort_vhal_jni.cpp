@@ -53,6 +53,7 @@ extern "C" {
 
 JNIEXPORT jlong JNICALL
 Java_com_kpit_comfort_base_service_BaseComfortService_nativeInit(JNIEnv* env, jobject thiz) {
+    ALOGD("nativeInit: initializing VHAL bridge");
     ensureHandlersRegistered();
 
     auto* bridge = new VhalBridge();
@@ -72,12 +73,14 @@ Java_com_kpit_comfort_base_service_BaseComfortService_nativeInit(JNIEnv* env, jo
     }
 
     bridge->serviceGlobalRef = env->NewGlobalRef(thiz);
+    ALOGD("nativeInit: bridge ready, handle=%p", bridge);
     return static_cast<jlong>(reinterpret_cast<intptr_t>(bridge));
 }
 
 JNIEXPORT void JNICALL
 Java_com_kpit_comfort_base_service_BaseComfortService_nativeRelease(JNIEnv* env, jobject /*thiz*/,
                                                                       jlong handle) {
+    ALOGD("nativeRelease: handle=%p", bridgeFromHandle(handle));
     VhalBridge* bridge = bridgeFromHandle(handle);
     if (bridge == nullptr) {
         return;
@@ -96,10 +99,12 @@ Java_com_kpit_comfort_base_service_BaseComfortService_nativeSubscribe(JNIEnv* /*
                                                                         jfloat sampleRateHz) {
     VhalBridge* bridge = bridgeFromHandle(handle);
     if (bridge == nullptr) {
+        ALOGW("nativeSubscribe: null bridge, propId=%d areaId=%d", propId, areaId);
         return JNI_FALSE;
     }
     bool subscribed = vps::VpsDispatcher::instance().subscribe(
             propId, areaId, sampleRateHz, [bridge](int32_t p, int32_t a) {
+                ALOGD("nativeSubscribe: event fired propId=%d areaId=%d", p, a);
                 JNIEnv* env = nullptr;
                 bool didAttach = false;
                 JavaVM* vm = bridge->javaVm;
@@ -121,6 +126,8 @@ Java_com_kpit_comfort_base_service_BaseComfortService_nativeSubscribe(JNIEnv* /*
                     vm->DetachCurrentThread();
                 }
             });
+    ALOGD("nativeSubscribe: propId=%d areaId=%d sampleRateHz=%f subscribed=%d", propId, areaId,
+          sampleRateHz, subscribed);
     return subscribed ? JNI_TRUE : JNI_FALSE;
 }
 
@@ -129,6 +136,7 @@ Java_com_kpit_comfort_base_service_BaseComfortService_nativeUnsubscribe(JNIEnv* 
                                                                           jobject /*thiz*/,
                                                                           jlong /*handle*/,
                                                                           jint propId) {
+    ALOGD("nativeUnsubscribe: propId=%d", propId);
     vps::VpsDispatcher::instance().unsubscribe(propId);
 }
 
@@ -139,8 +147,9 @@ Java_com_kpit_comfort_base_service_BaseComfortService_nativeSetIntProperty(JNIEn
                                                                              jint propId,
                                                                              jint areaId,
                                                                              jint value) {
-    return vps::VpsDispatcher::instance().setIntProperty(propId, areaId, value) ? JNI_TRUE
-                                                                                  : JNI_FALSE;
+    bool ok = vps::VpsDispatcher::instance().setIntProperty(propId, areaId, value);
+    ALOGD("nativeSetIntProperty: propId=%d areaId=%d value=%d ok=%d", propId, areaId, value, ok);
+    return ok ? JNI_TRUE : JNI_FALSE;
 }
 
 JNIEXPORT jint JNICALL
@@ -150,7 +159,8 @@ Java_com_kpit_comfort_base_service_BaseComfortService_nativeGetIntProperty(JNIEn
                                                                              jint propId,
                                                                              jint areaId) {
     int32_t value = 0;
-    vps::VpsDispatcher::instance().getIntProperty(propId, areaId, &value);
+    bool ok = vps::VpsDispatcher::instance().getIntProperty(propId, areaId, &value);
+    ALOGD("nativeGetIntProperty: propId=%d areaId=%d value=%d ok=%d", propId, areaId, value, ok);
     return static_cast<jint>(value);
 }
 
@@ -161,8 +171,9 @@ Java_com_kpit_comfort_base_service_BaseComfortService_nativeSetFloatProperty(JNI
                                                                                jint propId,
                                                                                jint areaId,
                                                                                jfloat value) {
-    return vps::VpsDispatcher::instance().setFloatProperty(propId, areaId, value) ? JNI_TRUE
-                                                                                    : JNI_FALSE;
+    bool ok = vps::VpsDispatcher::instance().setFloatProperty(propId, areaId, value);
+    ALOGD("nativeSetFloatProperty: propId=%d areaId=%d value=%f ok=%d", propId, areaId, value, ok);
+    return ok ? JNI_TRUE : JNI_FALSE;
 }
 
 JNIEXPORT jfloat JNICALL
@@ -172,7 +183,8 @@ Java_com_kpit_comfort_base_service_BaseComfortService_nativeGetFloatProperty(JNI
                                                                                jint propId,
                                                                                jint areaId) {
     float value = 0.0f;
-    vps::VpsDispatcher::instance().getFloatProperty(propId, areaId, &value);
+    bool ok = vps::VpsDispatcher::instance().getFloatProperty(propId, areaId, &value);
+    ALOGD("nativeGetFloatProperty: propId=%d areaId=%d value=%f ok=%d", propId, areaId, value, ok);
     return value;
 }
 
@@ -183,9 +195,10 @@ Java_com_kpit_comfort_base_service_BaseComfortService_nativeSetBoolProperty(JNIE
                                                                               jint propId,
                                                                               jint areaId,
                                                                               jboolean value) {
-    return vps::VpsDispatcher::instance().setBoolProperty(propId, areaId, value == JNI_TRUE)
-                   ? JNI_TRUE
-                   : JNI_FALSE;
+    bool ok = vps::VpsDispatcher::instance().setBoolProperty(propId, areaId, value == JNI_TRUE);
+    ALOGD("nativeSetBoolProperty: propId=%d areaId=%d value=%d ok=%d", propId, areaId,
+          value == JNI_TRUE, ok);
+    return ok ? JNI_TRUE : JNI_FALSE;
 }
 
 JNIEXPORT jboolean JNICALL
@@ -195,7 +208,8 @@ Java_com_kpit_comfort_base_service_BaseComfortService_nativeGetBoolProperty(JNIE
                                                                               jint propId,
                                                                               jint areaId) {
     bool value = false;
-    vps::VpsDispatcher::instance().getBoolProperty(propId, areaId, &value);
+    bool ok = vps::VpsDispatcher::instance().getBoolProperty(propId, areaId, &value);
+    ALOGD("nativeGetBoolProperty: propId=%d areaId=%d value=%d ok=%d", propId, areaId, value, ok);
     return value ? JNI_TRUE : JNI_FALSE;
 }
 

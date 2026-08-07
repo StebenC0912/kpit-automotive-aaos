@@ -13,6 +13,7 @@ VpsDispatcher& VpsDispatcher::instance() {
 void VpsDispatcher::registerHandler(std::shared_ptr<IVpsHandler> handler) {
     std::lock_guard<std::mutex> lock(mMutex);
     mHandlers.push_back(std::move(handler));
+    ALOGD("registerHandler: now have %zu handler(s)", mHandlers.size());
 }
 
 IVpsHandler* VpsDispatcher::findHandler(int32_t propId) const {
@@ -36,6 +37,7 @@ bool VpsDispatcher::getIntProperty(int32_t propId, int32_t areaId, int32_t* outV
         return false;
     }
     *outValue = value.asInt32();
+    ALOGD("getIntProperty: propId=%d areaId=%d value=%d", propId, areaId, *outValue);
     return true;
 }
 
@@ -45,6 +47,7 @@ bool VpsDispatcher::setIntProperty(int32_t propId, int32_t areaId, int32_t value
         ALOGW("setIntProperty: no handler registered for propId=%d", propId);
         return false;
     }
+    ALOGD("setIntProperty: propId=%d areaId=%d value=%d", propId, areaId, value);
     return handler->setProperty(propId, areaId, VpsPropValue::ofInt32(value));
 }
 
@@ -59,6 +62,7 @@ bool VpsDispatcher::getFloatProperty(int32_t propId, int32_t areaId, float* outV
         return false;
     }
     *outValue = value.asFloat();
+    ALOGD("getFloatProperty: propId=%d areaId=%d value=%f", propId, areaId, *outValue);
     return true;
 }
 
@@ -68,6 +72,7 @@ bool VpsDispatcher::setFloatProperty(int32_t propId, int32_t areaId, float value
         ALOGW("setFloatProperty: no handler registered for propId=%d", propId);
         return false;
     }
+    ALOGD("setFloatProperty: propId=%d areaId=%d value=%f", propId, areaId, value);
     return handler->setProperty(propId, areaId, VpsPropValue::ofFloat(value));
 }
 
@@ -82,6 +87,7 @@ bool VpsDispatcher::getBoolProperty(int32_t propId, int32_t areaId, bool* outVal
         return false;
     }
     *outValue = value.asBool();
+    ALOGD("getBoolProperty: propId=%d areaId=%d value=%d", propId, areaId, *outValue);
     return true;
 }
 
@@ -91,6 +97,7 @@ bool VpsDispatcher::setBoolProperty(int32_t propId, int32_t areaId, bool value) 
         ALOGW("setBoolProperty: no handler registered for propId=%d", propId);
         return false;
     }
+    ALOGD("setBoolProperty: propId=%d areaId=%d value=%d", propId, areaId, value);
     return handler->setProperty(propId, areaId, VpsPropValue::ofBool(value));
 }
 
@@ -101,12 +108,14 @@ bool VpsDispatcher::subscribe(int32_t propId, int32_t areaId, float sampleRateHz
         ALOGW("subscribe: no handler registered for propId=%d", propId);
         return false;
     }
+    ALOGD("subscribe: propId=%d areaId=%d sampleRateHz=%f", propId, areaId, sampleRateHz);
     return handler->subscribe(propId, areaId, sampleRateHz, std::move(callback));
 }
 
 void VpsDispatcher::unsubscribe(int32_t propId) {
     IVpsHandler* handler = findHandler(propId);
     if (handler != nullptr) {
+        ALOGD("unsubscribe: propId=%d", propId);
         handler->unsubscribe(propId);
     }
 }

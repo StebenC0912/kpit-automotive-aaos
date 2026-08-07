@@ -1,6 +1,7 @@
 package com.kpit.hmi.hvac;
 
 import android.os.Bundle;
+import android.util.Log;
 import android.view.View;
 import android.widget.ImageButton;
 import android.widget.LinearLayout;
@@ -17,6 +18,7 @@ import com.kpit.hmi.hvac.model.HvacTempState;
 import com.kpit.hmi.hvac.viewmodel.HvacViewModel;
 
 public class HvacActivity extends AppCompatActivity {
+    private static final String TAG = "HvacActivity";
     private static final float INACTIVE_TOGGLE_ALPHA = 0.5f;
     private static final int MIN_FAN_SPEED = 0;
     private static final int MAX_FAN_SPEED = 12;
@@ -49,6 +51,7 @@ public class HvacActivity extends AppCompatActivity {
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        Log.d(TAG, "onCreate: starting");
 
         setContentView(R.layout.activity_main);
 
@@ -81,31 +84,36 @@ public class HvacActivity extends AppCompatActivity {
 
         hvacViewModel.getIsOtherControlsEnable().observe(this, this::setPanelInteractivity);
 
-        btnAc.setOnClickListener(v -> hvacViewModel.toggleAc());
-        btnMax.setOnClickListener(v -> hvacViewModel.toggleMax());
-        btnCycle.setOnClickListener(v -> hvacViewModel.toggleRecycle());
+        btnAc.setOnClickListener(v -> { Log.d(TAG, "onClick: btnAc"); hvacViewModel.toggleAc(); });
+        btnMax.setOnClickListener(v -> { Log.d(TAG, "onClick: btnMax"); hvacViewModel.toggleMax(); });
+        btnCycle.setOnClickListener(v -> { Log.d(TAG, "onClick: btnCycle"); hvacViewModel.toggleRecycle(); });
 
-        btnFanDown.setOnClickListener(v -> hvacViewModel.decrementFanSpeed());
-        btnFanUp.setOnClickListener(v -> hvacViewModel.increaseFanSpeed());
+        btnFanDown.setOnClickListener(v -> { Log.d(TAG, "onClick: btnFanDown"); hvacViewModel.decrementFanSpeed(); });
+        btnFanUp.setOnClickListener(v -> { Log.d(TAG, "onClick: btnFanUp"); hvacViewModel.increaseFanSpeed(); });
 
-        btnTempLeftDown.setOnClickListener(v -> hvacViewModel.decreaseTemp(1));
-        btnTempLeftUp.setOnClickListener(v -> hvacViewModel.incrementTemp(1));
-        btnTempRightDown.setOnClickListener(v -> hvacViewModel.decreaseTemp(2));
-        btnTempRightUp.setOnClickListener(v -> hvacViewModel.incrementTemp(2));
-        btnSync.setOnClickListener(v -> hvacViewModel.toggleSync());
+        btnTempLeftDown.setOnClickListener(v -> { Log.d(TAG, "onClick: btnTempLeftDown"); hvacViewModel.decreaseTemp(1); });
+        btnTempLeftUp.setOnClickListener(v -> { Log.d(TAG, "onClick: btnTempLeftUp"); hvacViewModel.incrementTemp(1); });
+        btnTempRightDown.setOnClickListener(v -> { Log.d(TAG, "onClick: btnTempRightDown"); hvacViewModel.decreaseTemp(2); });
+        btnTempRightUp.setOnClickListener(v -> { Log.d(TAG, "onClick: btnTempRightUp"); hvacViewModel.incrementTemp(2); });
+        btnSync.setOnClickListener(v -> { Log.d(TAG, "onClick: btnSync"); hvacViewModel.toggleSync(); });
 
-        btnAuto.setOnClickListener(v -> hvacViewModel.toggleAuto());
-        btnHeatingLeft.setOnClickListener(v -> hvacViewModel.toggleSeatHeating(1));
-        btnHeatingRight.setOnClickListener(v -> hvacViewModel.toggleSeatHeating(2));
-        btnDefrost.setOnClickListener(v -> hvacViewModel.toggleDefrost());
+        btnAuto.setOnClickListener(v -> { Log.d(TAG, "onClick: btnAuto"); hvacViewModel.toggleAuto(); });
+        btnHeatingLeft.setOnClickListener(v -> { Log.d(TAG, "onClick: btnHeatingLeft"); hvacViewModel.toggleSeatHeating(1); });
+        btnHeatingRight.setOnClickListener(v -> { Log.d(TAG, "onClick: btnHeatingRight"); hvacViewModel.toggleSeatHeating(2); });
+        btnDefrost.setOnClickListener(v -> { Log.d(TAG, "onClick: btnDefrost"); hvacViewModel.toggleDefrost(); });
 
-        btnVentilationFoot.setOnClickListener(v -> hvacViewModel.toggleVentilationMode(1));
-        btnVentilationFootAndFace.setOnClickListener(v -> hvacViewModel.toggleVentilationMode(2));
-        btnVentilationFace.setOnClickListener(v -> hvacViewModel.toggleVentilationMode(3));
+        btnVentilationFoot.setOnClickListener(v -> { Log.d(TAG, "onClick: btnVentilationFoot"); hvacViewModel.toggleVentilationMode(1); });
+        btnVentilationFootAndFace.setOnClickListener(v -> { Log.d(TAG, "onClick: btnVentilationFootAndFace"); hvacViewModel.toggleVentilationMode(2); });
+        btnVentilationFace.setOnClickListener(v -> { Log.d(TAG, "onClick: btnVentilationFace"); hvacViewModel.toggleVentilationMode(3); });
 
+        Log.d(TAG, "onCreate: done");
     }
 
     private void renderHvacSystemAboveUi(HvacSystemAboveState hvacSystemAboveState) {
+        Log.d(TAG, "renderHvacSystemAboveUi: acEnable=" + hvacSystemAboveState.isAcEnable()
+                + " acActivate=" + hvacSystemAboveState.isACActivate()
+                + " maxActivate=" + hvacSystemAboveState.isMaxActivate()
+                + " recycleActivate=" + hvacSystemAboveState.isRecycleActivate());
         btnAc.setActivated(hvacSystemAboveState.isACActivate());
         btnAc.setEnabled(hvacSystemAboveState.isAcEnable());
         btnAc.setAlpha(hvacSystemAboveState.isAcEnable() ? 1.0f : 0.35f);
@@ -115,6 +123,7 @@ public class HvacActivity extends AppCompatActivity {
     }
 
     private void renderHvacFanUi(HvacFanState hvacFanState) {
+        Log.d(TAG, "renderHvacFanUi: fanSpeed=" + hvacFanState.getFanSpeed());
         int totalBars = layoutFanSpeed.getChildCount();
         for (int i = 0; i < totalBars; i++) {
             View segment = layoutFanSpeed.getChildAt(i);
@@ -134,6 +143,9 @@ public class HvacActivity extends AppCompatActivity {
     }
 
     private void renderHvacTempUi(HvacTempState hvacTempState) {
+        Log.d(TAG, "renderHvacTempUi: leftTemp=" + hvacTempState.getLeftZoneTemp()
+                + " rightTemp=" + hvacTempState.getRightZoneTemp()
+                + " syncOn=" + hvacTempState.isSyncOn());
         tempRight.setText(String.format("%.0f", hvacTempState.getRightZoneTemp()));
         tempLeft.setText(String.format("%.0f", hvacTempState.getLeftZoneTemp()));
         btnSync.setActivated(hvacTempState.isSyncOn());
@@ -141,6 +153,13 @@ public class HvacActivity extends AppCompatActivity {
     }
 
     private void renderHvacSystemBelowUi(HvacSystemBelowState hvacSystemBelowState) {
+        Log.d(TAG, "renderHvacSystemBelowUi: auto=" + hvacSystemBelowState.isAutoActivate()
+                + " heatingLeft=" + hvacSystemBelowState.isHeatingLeftActive()
+                + " heatingRight=" + hvacSystemBelowState.isHeatingRightActive()
+                + " ventFoot=" + hvacSystemBelowState.isVentilationFootActive()
+                + " ventFootFace=" + hvacSystemBelowState.isVentilationFootFaceActive()
+                + " ventFace=" + hvacSystemBelowState.isVentilationFaceActive()
+                + " defrost=" + hvacSystemBelowState.isDefrostActive());
         btnAuto.setActivated(hvacSystemBelowState.isAutoActivate());
 
         // These icons have no dedicated "pressed" drawable, so activation is conveyed via alpha instead.
@@ -158,6 +177,7 @@ public class HvacActivity extends AppCompatActivity {
     }
 
     private void setPanelInteractivity(boolean isEnable) {
+        Log.d(TAG, "setPanelInteractivity: isEnable=" + isEnable);
         float targetAlpha = isEnable ? 1.0f : 0.35f;
 
         View[] hvacControlPanel = new View[]{

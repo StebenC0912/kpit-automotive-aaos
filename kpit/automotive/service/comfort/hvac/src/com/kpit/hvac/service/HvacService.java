@@ -39,6 +39,7 @@ public class HvacService extends BaseComfortService<IHVACVehicleCallback> {
     private final IHVACVehicleService.Stub mBinder = new IHVACVehicleService.Stub() {
         @Override
         public void setVehicleProperty(int id, int areaId, float value) {
+            Log.d(TAG, "setVehicleProperty: id=" + id + " areaId=" + areaId + " value=" + value);
             mExecutorPool.execute(() -> {
                 long handle = getNativeHandle();
                 if (handle == 0) {
@@ -47,17 +48,21 @@ public class HvacService extends BaseComfortService<IHVACVehicleCallback> {
                 }
                 if (!nativeSetFloatProperty(handle, id, areaId, value)) {
                     Log.w(TAG, "setVehicleProperty: native set failed, id=" + id);
+                } else {
+                    Log.d(TAG, "setVehicleProperty: native set succeeded, id=" + id);
                 }
             });
         }
 
         @Override
         public void registerCallback(IHVACVehicleCallback callback) {
+            Log.d(TAG, "registerCallback: " + callback);
             mCallbacks.register(callback);
         }
 
         @Override
         public void unregisterCallback(IHVACVehicleCallback callback) {
+            Log.d(TAG, "unregisterCallback: " + callback);
             mCallbacks.unregister(callback);
         }
     };
@@ -76,12 +81,16 @@ public class HvacService extends BaseComfortService<IHVACVehicleCallback> {
             Log.e(TAG, "subscribeToVehicleProperties: native VHAL bridge never became ready");
             return;
         }
+        Log.d(TAG, "subscribeToVehicleProperties: native handle ready, subscribing to all properties");
         for (int propId : GLOBAL_PROPS) {
-            nativeSubscribe(handle, propId, HvacProperties.AREA_GLOBAL, DEFAULT_SAMPLE_RATE_HZ);
+            boolean subscribed = nativeSubscribe(handle, propId, HvacProperties.AREA_GLOBAL, DEFAULT_SAMPLE_RATE_HZ);
+            Log.d(TAG, "subscribeToVehicleProperties: propId=" + propId + " areaId=GLOBAL subscribed=" + subscribed);
         }
         for (int propId : PER_SEAT_PROPS) {
-            nativeSubscribe(handle, propId, HvacProperties.DRIVER, DEFAULT_SAMPLE_RATE_HZ);
-            nativeSubscribe(handle, propId, HvacProperties.PASSENGER, DEFAULT_SAMPLE_RATE_HZ);
+            boolean driverSubscribed = nativeSubscribe(handle, propId, HvacProperties.DRIVER, DEFAULT_SAMPLE_RATE_HZ);
+            Log.d(TAG, "subscribeToVehicleProperties: propId=" + propId + " areaId=DRIVER subscribed=" + driverSubscribed);
+            boolean passengerSubscribed = nativeSubscribe(handle, propId, HvacProperties.PASSENGER, DEFAULT_SAMPLE_RATE_HZ);
+            Log.d(TAG, "subscribeToVehicleProperties: propId=" + propId + " areaId=PASSENGER subscribed=" + passengerSubscribed);
         }
     }
 
@@ -105,10 +114,13 @@ public class HvacService extends BaseComfortService<IHVACVehicleCallback> {
     protected void onVehiclePropertyChanged(int propId, int areaId) {
         long handle = getNativeHandle();
         if (handle == 0) {
+            Log.w(TAG, "onVehiclePropertyChanged: native VHAL bridge not ready, propId=" + propId);
             return;
         }
         HvacEvent event = new HvacEvent(propId, areaId, nativeGetFloatProperty(handle, propId, areaId));
-        broadcastToListeners(callback -> callback.onChangeEvent(event));
+        Log.d(TAG, "onVehiclePropertyChanged: broadcasting " + event);
+        int listenerCount = broadcastToListeners(callback -> callback.onChangeEvent(event));
+        Log.d(TAG, "onVehiclePropertyChanged: broadcast to " + listenerCount + " listener(s)");
     }
 
     @Override

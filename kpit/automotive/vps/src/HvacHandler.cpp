@@ -38,12 +38,14 @@ constexpr auto kSimTick = std::chrono::seconds(5);
 }  // namespace
 
 HvacHandler::HvacHandler() {
+    ALOGD("HvacHandler: constructing, seeding defaults and starting simulation thread");
     seedDefaults();
     mRunning = true;
     mSimThread = std::thread(&HvacHandler::simulationLoop, this);
 }
 
 HvacHandler::~HvacHandler() {
+    ALOGD("HvacHandler: destructing, stopping simulation thread");
     mRunning = false;
     if (mSimThread.joinable()) {
         mSimThread.join();
@@ -81,10 +83,12 @@ bool HvacHandler::getProperty(int32_t propId, int32_t areaId, VpsPropValue* outV
         return false;
     }
     *outValue = VpsPropValue::ofFloat(it->second);
+    ALOGD("getProperty: propId=%d areaId=%d value=%f", propId, areaId, it->second);
     return true;
 }
 
 bool HvacHandler::setProperty(int32_t propId, int32_t areaId, const VpsPropValue& value) {
+    ALOGD("setProperty: propId=%d areaId=%d value=%f", propId, areaId, value.asFloat());
     {
         std::lock_guard<std::mutex> lock(mMutex);
         mStore[{propId, areaId}] = value.asFloat();
@@ -95,8 +99,9 @@ bool HvacHandler::setProperty(int32_t propId, int32_t areaId, const VpsPropValue
     return true;
 }
 
-bool HvacHandler::subscribe(int32_t propId, int32_t areaId, float /*sampleRateHz*/,
+bool HvacHandler::subscribe(int32_t propId, int32_t areaId, float sampleRateHz,
                              VpsEventCallback callback) {
+    ALOGD("subscribe: propId=%d areaId=%d sampleRateHz=%f", propId, areaId, sampleRateHz);
     std::lock_guard<std::mutex> lock(mMutex);
     mSubscribedKeys.insert({propId, areaId});
     mCallback = std::move(callback);
@@ -104,6 +109,7 @@ bool HvacHandler::subscribe(int32_t propId, int32_t areaId, float /*sampleRateHz
 }
 
 void HvacHandler::unsubscribe(int32_t propId) {
+    ALOGD("unsubscribe: propId=%d", propId);
     std::lock_guard<std::mutex> lock(mMutex);
     for (auto it = mSubscribedKeys.begin(); it != mSubscribedKeys.end();) {
         if (it->propId == propId) {
@@ -119,10 +125,12 @@ void HvacHandler::notify(int32_t propId, int32_t areaId) {
     {
         std::lock_guard<std::mutex> lock(mMutex);
         if (mSubscribedKeys.find({propId, areaId}) == mSubscribedKeys.end() || !mCallback) {
+            ALOGD("notify: propId=%d areaId=%d skipped (not subscribed or no callback)", propId, areaId);
             return;
         }
         callback = mCallback;
     }
+    ALOGD("notify: propId=%d areaId=%d firing callback", propId, areaId);
     callback(propId, areaId);
 }
 
@@ -138,6 +146,7 @@ void HvacHandler::simulationLoop() {
         }
         phase += 0.1f;
         float outsideTemp = kDefaultOutsideTempC + std::sin(phase) * 3.0f;
+        ALOGD("simulationLoop: drifting PROP_TEMP_OUTSIDE to %f", outsideTemp);
         {
             std::lock_guard<std::mutex> lock(mMutex);
             mStore[{PROP_TEMP_OUTSIDE, AREA_GLOBAL}] = outsideTemp;
