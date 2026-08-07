@@ -33,7 +33,9 @@
         android:name="com.kpit.bluetooth.permission.BIND_BLUETOOTH_SERVICE"
         android:protectionLevel="signature" />
 
-    <application android:persistent="true">
+    <application
+        android:name="com.kpit.bluetooth.service.IviBluetoothApplication"
+        android:persistent="true">
         <service
             android:name="com.kpit.bluetooth.service.IviBluetoothService"
             android:permission="com.kpit.bluetooth.permission.BIND_BLUETOOTH_SERVICE"

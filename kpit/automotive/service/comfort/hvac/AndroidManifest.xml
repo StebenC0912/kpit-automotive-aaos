@@ -16,7 +16,9 @@
         android:name="com.kpit.hvac.permission.BIND_HVAC_SERVICE"
         android:protectionLevel="signature" />
 
-    <application android:persistent="true">
+    <application
+        android:name="com.kpit.hvac.service.HvacApplication"
+        android:persistent="true">
         <service
             android:name="com.kpit.hvac.service.HvacService"
             android:permission="com.kpit.hvac.permission.BIND_HVAC_SERVICE"
