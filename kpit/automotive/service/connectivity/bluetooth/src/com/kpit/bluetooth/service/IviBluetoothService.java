@@ -118,6 +118,7 @@ public class IviBluetoothService extends BaseConnectivityService<IIviBluetoothLi
         @Override
         public void registerListener(IIviBluetoothListener listener) {
             mCallbacks.register(listener);
+            Log.i(TAG, "registerListener: listener attached");
         }
 
         @Override
@@ -283,17 +284,21 @@ public class IviBluetoothService extends BaseConnectivityService<IIviBluetoothLi
             case BluetoothHeadsetClient.ACTION_CONNECTION_STATE_CHANGED: {
                 int state = intent.getIntExtra(BluetoothProfile.EXTRA_STATE, BluetoothProfile.STATE_DISCONNECTED);
                 boolean connected = state == BluetoothProfile.STATE_CONNECTED;
-                broadcastToListeners(l -> l.onDeviceConnectionChanged(
+                int listenerCount = broadcastToListeners(l -> l.onDeviceConnectionChanged(
                         toDeviceInfo(device, BluetoothDeviceInfo.PROFILE_HFP), connected));
+                Log.i(TAG, "handleBroadcast: HFP " + device.getAddress() + " connected=" + connected
+                        + " -> " + listenerCount + " listener(s)");
                 break;
             }
             case BluetoothA2dpSink.ACTION_CONNECTION_STATE_CHANGED: {
                 int state = intent.getIntExtra(BluetoothProfile.EXTRA_STATE, BluetoothProfile.STATE_DISCONNECTED);
                 boolean connected = state == BluetoothProfile.STATE_CONNECTED;
                 // AVRCP rides on the A2DP link (see onConnectivitySourceConnect()'s A2DP listener).
-                broadcastToListeners(l -> l.onDeviceConnectionChanged(
+                int listenerCount = broadcastToListeners(l -> l.onDeviceConnectionChanged(
                         toDeviceInfo(device, BluetoothDeviceInfo.PROFILE_A2DP | BluetoothDeviceInfo.PROFILE_AVRCP),
                         connected));
+                Log.i(TAG, "handleBroadcast: A2DP " + device.getAddress() + " connected=" + connected
+                        + " -> " + listenerCount + " listener(s)");
                 break;
             }
             default:
