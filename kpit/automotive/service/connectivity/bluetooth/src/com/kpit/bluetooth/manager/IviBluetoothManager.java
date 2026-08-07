@@ -61,6 +61,11 @@ public class IviBluetoothManager extends BaseConnectivityManager<IIviBluetoothSe
                 mListeners.add(listener);
             }
         }
+        // Registering a listener is the app's signal it wants events -- force the connection (and
+        // therefore the remote registerListener()) now instead of waiting for some future outbound
+        // connect()/disconnect()/sendMediaCommand() call, since bluetooth_app has no connect button
+        // at all (pairing happens through OS Settings) and may never make one otherwise.
+        getService();
     }
 
     public void unregisterBluetoothListener(BluetoothListener listener) {

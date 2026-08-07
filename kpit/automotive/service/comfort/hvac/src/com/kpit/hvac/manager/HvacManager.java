@@ -59,6 +59,11 @@ public class HvacManager extends BaseComfortManager<IHVACVehicleService> impleme
             if (!systemListenerList.contains(systemListener))
                 systemListenerList.add(systemListener);
         }
+        // Registering a listener is the app's signal it wants events -- force the connection (and
+        // therefore the remote registerCallback()) now instead of waiting for some future outbound
+        // setProperty() call, since nothing else guarantees one will ever happen (HvacViewModel's UI
+        // toggles are themselves gated on state that only arrives via a callback event).
+        getService();
     }
 
     public void unregisterSystemListener() {
@@ -72,6 +77,9 @@ public class HvacManager extends BaseComfortManager<IHVACVehicleService> impleme
         synchronized (hvacListenerList) {
             hvacListenerList.add(hvacListener);
         }
+        // See registerSystemListener() -- same forced-connect reasoning, needed here too since
+        // callers may register only one of the two listener types.
+        getService();
     }
 
     public void unregisterHvacListener() {
