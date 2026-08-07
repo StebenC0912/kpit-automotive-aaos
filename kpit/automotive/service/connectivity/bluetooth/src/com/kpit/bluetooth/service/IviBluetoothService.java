@@ -28,6 +28,7 @@ import com.kpit.bluetooth.manager.MediaPlaybackInfo;
 import com.kpit.connectivity.base.service.BaseConnectivityService;
 
 import java.util.List;
+import java.util.Locale;
 
 /**
  * Service implementation for the Bluetooth connectivity domain (instruction.md section VI). This
@@ -304,7 +305,10 @@ public class IviBluetoothService extends BaseConnectivityService<IIviBluetoothLi
     // COMMAND FLOW -- connect/disconnect (HFP+A2DP) and media transport controls (AVRCP).
     // =============================================================================================
     private void connectDevice(String macAddress) {
-        BluetoothDevice device = BluetoothAdapter.getDefaultAdapter().getRemoteDevice(macAddress);
+        BluetoothDevice device = getRemoteDeviceOrNull(macAddress);
+        if (device == null) {
+            return;
+        }
         // connect()/disconnect() are @hide-only (no @SystemApi) on these profile proxies in this
         // AOSP version, so they're stripped from the Bluetooth mainline module's exported stub —
         // same unreachable-API story as BluetoothAvrcpController (section V). setConnectionPolicy()
@@ -319,12 +323,29 @@ public class IviBluetoothService extends BaseConnectivityService<IIviBluetoothLi
     }
 
     private void disconnectDevice(String macAddress) {
-        BluetoothDevice device = BluetoothAdapter.getDefaultAdapter().getRemoteDevice(macAddress);
+        BluetoothDevice device = getRemoteDeviceOrNull(macAddress);
+        if (device == null) {
+            return;
+        }
         if (mHfpProxy != null) {
             mHfpProxy.setConnectionPolicy(device, BluetoothProfile.CONNECTION_POLICY_FORBIDDEN);
         }
         if (mA2dpProxy != null) {
             mA2dpProxy.setConnectionPolicy(device, BluetoothProfile.CONNECTION_POLICY_FORBIDDEN);
+        }
+    }
+
+    // BluetoothAdapter.getRemoteDevice() validates against a case-sensitive regex requiring
+    // uppercase hex digits and throws IllegalArgumentException on anything else (including a
+    // syntactically fine but lowercase address, e.g. one copied from bt_config.conf, which always
+    // prints lowercase). Left uncaught, that exception kills this persistent process on a bad AIDL
+    // argument from any caller. Normalize case and swallow-and-log instead of crash-looping.
+    private BluetoothDevice getRemoteDeviceOrNull(String macAddress) {
+        try {
+            return BluetoothAdapter.getDefaultAdapter().getRemoteDevice(macAddress.toUpperCase(Locale.US));
+        } catch (IllegalArgumentException e) {
+            Log.e(TAG, "getRemoteDeviceOrNull: invalid MAC address " + macAddress, e);
+            return null;
         }
     }
 
