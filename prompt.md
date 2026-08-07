@@ -1,1 +1,0 @@
-lunch aosp_car_x86_64_userdebug

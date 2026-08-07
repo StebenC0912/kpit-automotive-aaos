@@ -3,9 +3,9 @@
 3-tier decoupled AAOS custom system services, modular C++ VPS, and MVVM HMI — implemented at
 `[AOSP_ROOT]/vendor/kpit/automotive/`.
 
-Full spec, build lessons, and design rationale live in [`kpit/instruction.md`](kpit/instruction.md).
-Commit messages in this repo follow the structure defined in
-[`kpit/commit_rule.md`](kpit/commit_rule.md).
+Full spec, build lessons, and design rationale live under [`kpit/docs/`](kpit/docs/), indexed from
+[`kpit/instruction.md`](kpit/instruction.md). Commit messages in this repo follow the structure
+defined in [`kpit/commit_rule.md`](kpit/commit_rule.md).
 
 ## Architecture
 
@@ -61,7 +61,8 @@ vendor/kpit/automotive/
 │    ├── comfort/        base, hvac, seat
 │    └── connectivity/   base, bluetooth
 ├── vps/                 libvps.so (C++)
-└── products/            kpit_apps.mk product packaging
+├── products/            kpit_apps.mk product packaging
+└── sepolicy/            service_manager types for hvac_service/bluetooth_service
 ```
 
 Branch history mirrors this layout — `hmi`, `vps`, and `service` were each built as their own
@@ -69,6 +70,8 @@ branch with small, module-scoped commits before merging into `main`.
 
 ## Building & running
 
-See [`kpit/instruction.md`](kpit/instruction.md) section VIII for emulator setup
-(`Automotive_1408p_landscape` AVD) and section X for product wiring
-(`aosp_car_x86_64-userdebug` / `sdk_car_x86_64-userdebug` lunch targets).
+See [`kpit/docs/08-emulator-setup.md`](kpit/docs/08-emulator-setup.md) for emulator setup
+(`Automotive_1408p_landscape` AVD) and
+[`kpit/docs/10-build-and-product-integration.md`](kpit/docs/10-build-and-product-integration.md)
+for product wiring (`aosp_car_x86_64-userdebug` / `sdk_car_x86_64-userdebug` lunch targets) and
+sepolicy notes.

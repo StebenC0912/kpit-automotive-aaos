@@ -18,7 +18,14 @@
       "Bash(git add *)",
       "Bash(git commit *)",
       "Bash(git checkout *)",
-      "Bash(git merge *)"
+      "Bash(git merge *)",
+      "Bash(git push *)",
+      "Read(//config/workspace/android_auto_os/**)",
+      "Bash(git status)",
+      "Bash(git apply *)",
+      "Bash(cd *)",
+      "Bash(git reset *)",
+      "Bash(git diff *)"
     ]
   }
 }
