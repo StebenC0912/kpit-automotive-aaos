@@ -61,7 +61,7 @@ public class HvacViewModel extends AndroidViewModel implements HvacListener, Sys
     }
 
     private void pushAboveState(boolean isAcEnabled) {
-        mHvacSystemAboveStateLiveData.postValue(new HvacSystemAboveState(mIsAcOn, isAcEnabled, mIsMaxOn, mIsCycleOn));
+        mHvacSystemAboveStateLiveData.postValue(new HvacSystemAboveState(isAcEnabled, mIsAcOn, mIsMaxOn, mIsCycleOn));
     }
 
     private void pushTempState() {
