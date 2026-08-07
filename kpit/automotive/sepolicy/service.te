@@ -1,0 +1,17 @@
+type hvac_service, service_manager_type;
+
+# bluetooth_service is already declared as a public type in
+# system/sepolicy/public/service.te - redeclaring it here causes a
+# "Duplicate declaration of type" error from checkpolicy.
+
+# HvacService/HvacManager and IviBluetoothService/IviBluetoothManager all run under
+# system_app - both apps declare sharedUserId="android.uid.system", which
+# seapp_contexts maps to domain system_app (not platform_app). Without these, retyping
+# the services off default_android_service breaks their own addService()/getService()
+# calls, not just adb's lookup.
+allow system_app hvac_service:service_manager { add find };
+allow system_app bluetooth_service:service_manager { add find };
+
+# Manual testing per instruction.md section XI/XII (`adb shell service call ...`).
+allow shell hvac_service:service_manager find;
+allow shell bluetooth_service:service_manager find;

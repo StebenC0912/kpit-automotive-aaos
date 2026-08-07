@@ -20,6 +20,17 @@ PRODUCT_PACKAGES += \
     privapp_permissions_bluetooth.xml
 
 #
+# hvac_service/bluetooth_service (ServiceManager.addService/getService, VI.6) have no
+# service_contexts entry anywhere in this tree, so they fall back to the generic
+# default_android_service SELinux type. That type's sepolicy allows the apps' own
+# system_app domain to add/find it, but not shell - so `adb shell service call
+# hvac_service ...` (section XI) gets denied and service_manager reports back
+# "service does not exist" instead of a permission error. Give both services their own
+# type instead so shell (and system_app itself) can be granted find explicitly.
+#
+BOARD_SEPOLICY_DIRS += vendor/kpit/automotive/sepolicy
+
+#
 # sdk_car_x86_64.mk inherits packages/services/Car/car_product/build/car_generic_system.mk,
 # which declares a strict artifact path requirement over TARGET_COPY_OUT_ROOT/SYSTEM (GSI
 # compliance - only files car_generic_system.mk itself lists may land in system.img). These
