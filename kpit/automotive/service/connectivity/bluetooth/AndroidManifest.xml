@@ -35,7 +35,8 @@
 
     <application
         android:name="com.kpit.bluetooth.service.IviBluetoothApplication"
-        android:persistent="true">
+        android:persistent="true"
+        android:directBootAware="true">
         <service
             android:name="com.kpit.bluetooth.service.IviBluetoothService"
             android:permission="com.kpit.bluetooth.permission.BIND_BLUETOOTH_SERVICE"

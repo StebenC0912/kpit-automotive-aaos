@@ -18,7 +18,8 @@
 
     <application
         android:name="com.kpit.hvac.service.HvacApplication"
-        android:persistent="true">
+        android:persistent="true"
+        android:directBootAware="true">
         <service
             android:name="com.kpit.hvac.service.HvacService"
             android:permission="com.kpit.hvac.permission.BIND_HVAC_SERVICE"
