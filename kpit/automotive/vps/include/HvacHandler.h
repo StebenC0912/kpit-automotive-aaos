@@ -1,30 +1,35 @@
 #pragma once
 
-#include <atomic>
+#include <memory>
 #include <mutex>
-#include <thread>
-#include <unordered_map>
 #include <unordered_set>
+#include <vector>
 
+#include "IHvacBackend.h"
 #include "IVpsHandler.h"
+#include "VpsPropConfig.h"
 
 namespace vps {
 
-// Simulated ECU/hardware backing for every property declared in
-// com.kpit.hvac.manager.HvacProperties.java (PROP_AC_STATE .. PROP_TEMP_OUTSIDE, propId 1..12).
-// Owns an in-memory property store keyed by (propId, areaId).
+// Validation and Java-facing subscription routing for every property declared in
+// com.kpit.hvac.manager.HvacProperties.java -- everything an IVpsHandler is responsible for (see
+// IVpsHandler.h). Storage and simulation are not owned here directly; they live behind an
+// IHvacBackend (FakeHvacBackend by default -- see kpit/docs/03-implementation-status.md Stage 3),
+// so this class works identically no matter what's actually holding the values.
 //
-// Two things drive an async property-change notification here, mirroring what a real VHAL/ECU
-// would do:
-//   1. setProperty() echoes the new value back out as an event immediately -- this is how a real
-//      vehicle's HAL confirms a command actually took effect, and it's the only way HvacService
-//      (which only reacts to onVehiclePropertyChanged, never to its own setVehicleProperty
-//      return value) learns a set succeeded.
-//   2. A background thread drifts PROP_TEMP_OUTSIDE the way a real outside-air-temperature sensor
-//      would, independent of anything the HMI does.
+// getProperty()/setProperty() validate every call against mConfigs (a VpsPropConfig per property
+// -- type/access/supported areas/value range, see VpsPropConfig.h) before delegating the actual
+// read/write to mBackend. subscribe()/unsubscribe() track which (propId, areaId) keys the Java
+// layer wants events for; onBackendValueChanged() -- wired up as the backend's change callback --
+// decides whether each value change the backend reports (whether self-caused by setProperty() or
+// backend-originated, e.g. FakeHvacBackend's simulated outside-temperature drift) is actually
+// forwarded to that Java layer. This mirrors what a real VHAL/ECU does: setProperty() only ever
+// learns a command took effect by seeing it echoed back through this same path -- there's no
+// separate "did my set succeed" return value AllianceCarHvacService relies on.
 class HvacHandler : public IVpsHandler {
 public:
     HvacHandler();
+    explicit HvacHandler(std::unique_ptr<IHvacBackend> backend);
     ~HvacHandler() override;
 
     bool supportsProperty(int32_t propId) const override;
@@ -50,17 +55,18 @@ private:
         }
     };
 
-    void seedDefaults();
-    void notify(int32_t propId, int32_t areaId);
-    void simulationLoop();
+    void buildConfigs();
+    const VpsPropConfig* findConfig(int32_t propId) const;
+    void onBackendValueChanged(int32_t propId, int32_t areaId, float value);
+
+    // Built once in the constructor, never modified afterward -- safe to read without mMutex.
+    std::vector<VpsPropConfig> mConfigs;
+
+    std::unique_ptr<IHvacBackend> mBackend;
 
     mutable std::mutex mMutex;
-    std::unordered_map<Key, float, KeyHash> mStore;
     std::unordered_set<Key, KeyHash> mSubscribedKeys;
     VpsEventCallback mCallback;
-
-    std::thread mSimThread;
-    std::atomic<bool> mRunning{false};
 };
 
 }  // namespace vps

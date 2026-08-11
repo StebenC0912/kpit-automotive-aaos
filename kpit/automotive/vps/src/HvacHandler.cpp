@@ -1,102 +1,177 @@
 #include "HvacHandler.h"
 
-#include <chrono>
-#include <cmath>
+#include "FakeHvacBackend.h"
+#include "VpsPropertyId.h"
 
 #define LOG_TAG "HvacHandler"
 #include <log/log.h>
 
 namespace vps {
 
-namespace {
+HvacHandler::HvacHandler() : HvacHandler(std::make_unique<FakeHvacBackend>()) {}
 
-// Mirrors com.kpit.hvac.manager.HvacProperties.java exactly -- this is a Java/C++ boundary with
-// no shared code-gen, so keep the two in sync by hand if that file ever changes.
-constexpr int32_t PROP_AC_STATE = 1;
-constexpr int32_t PROP_MAX_STATE = 2;
-constexpr int32_t PROP_RECYCLE_STATE = 3;
-constexpr int32_t PROP_FAN_SPEED = 4;
-constexpr int32_t PROP_TEMP = 5;
-constexpr int32_t PROP_SYNC = 6;
-constexpr int32_t PROP_SEAT_HEATING = 7;
-constexpr int32_t PROP_VENTILATION_MODE = 8;
-constexpr int32_t PROP_AUTO_MODE = 9;
-constexpr int32_t PROP_DEFROST = 10;
-constexpr int32_t PROP_VEHICLE_STATE = 11;
-constexpr int32_t PROP_TEMP_OUTSIDE = 12;
-
-constexpr int32_t AREA_GLOBAL = 0;
-constexpr int32_t DRIVER = 1;
-constexpr int32_t PASSENGER = 2;
-
-constexpr float kDefaultTempC = 22.0f;
-constexpr float kDefaultOutsideTempC = 25.0f;
-constexpr float kDefaultFanSpeed = 2.0f;
-
-constexpr auto kSimTick = std::chrono::seconds(5);
-
-}  // namespace
-
-HvacHandler::HvacHandler() {
-    ALOGD("HvacHandler: constructing, seeding defaults and starting simulation thread");
-    seedDefaults();
-    mRunning = true;
-    mSimThread = std::thread(&HvacHandler::simulationLoop, this);
+HvacHandler::HvacHandler(std::unique_ptr<IHvacBackend> backend) : mBackend(std::move(backend)) {
+    ALOGD("HvacHandler: constructing, building configs and wiring backend change callback");
+    buildConfigs();
+    mBackend->setChangeCallback([this](int32_t propId, int32_t areaId, float value) {
+        onBackendValueChanged(propId, areaId, value);
+    });
 }
 
 HvacHandler::~HvacHandler() {
-    ALOGD("HvacHandler: destructing, stopping simulation thread");
-    mRunning = false;
-    if (mSimThread.joinable()) {
-        mSimThread.join();
-    }
+    ALOGD("HvacHandler: destructing, releasing backend");
+    // Explicit reset (rather than leaving it to implicit member teardown) guarantees the backend
+    // -- and any simulation thread it owns, e.g. FakeHvacBackend's -- is fully stopped before this
+    // destructor returns, so onBackendValueChanged() can never fire against a partially-destroyed
+    // *this.
+    mBackend.reset();
 }
 
-void HvacHandler::seedDefaults() {
-    std::lock_guard<std::mutex> lock(mMutex);
-    mStore[{PROP_AC_STATE, AREA_GLOBAL}] = 0.0f;
-    mStore[{PROP_MAX_STATE, AREA_GLOBAL}] = 0.0f;
-    mStore[{PROP_RECYCLE_STATE, AREA_GLOBAL}] = 0.0f;
-    mStore[{PROP_FAN_SPEED, AREA_GLOBAL}] = kDefaultFanSpeed;
-    mStore[{PROP_SYNC, AREA_GLOBAL}] = 0.0f;
-    mStore[{PROP_AUTO_MODE, AREA_GLOBAL}] = 0.0f;
-    mStore[{PROP_DEFROST, AREA_GLOBAL}] = 0.0f;
-    mStore[{PROP_VENTILATION_MODE, AREA_GLOBAL}] = 0.0f;
-    mStore[{PROP_VEHICLE_STATE, AREA_GLOBAL}] = 0.0f;
-    mStore[{PROP_TEMP_OUTSIDE, AREA_GLOBAL}] = kDefaultOutsideTempC;
+// One entry per property this handler owns, modeled on real VHAL's VehiclePropConfig. Access is
+// READ_WRITE across the board: even PROP_VEHICLE_STATE and PROP_TEMP_OUTSIDE, which a real
+// vehicle would expose READ-only (they're system/sensor signals, not HMI commands), stay
+// READ_WRITE here because docs/11-testing-hvac.md's documented test flow depends on setting both
+// via adb (unlocking the panel, injecting an outside-temp value) -- enforcing READ would break
+// that without being asked to. Everything else (type, supported areas, value range) is enforced.
+void HvacHandler::buildConfigs() {
+    using Access = VpsPropConfig::Access;
+    using ChangeMode = VpsPropConfig::ChangeMode;
+    using Type = VpsPropValue::Type;
 
-    mStore[{PROP_TEMP, DRIVER}] = kDefaultTempC;
-    mStore[{PROP_TEMP, PASSENGER}] = kDefaultTempC;
-    mStore[{PROP_SEAT_HEATING, DRIVER}] = 0.0f;
-    mStore[{PROP_SEAT_HEATING, PASSENGER}] = 0.0f;
+    auto boolGlobal = [](int32_t id) {
+        VpsPropConfig c;
+        c.propId = id;
+        c.type = Type::BOOL;
+        c.access = Access::READ_WRITE;
+        c.changeMode = ChangeMode::ON_CHANGE;
+        c.supportedAreas = {AREA_GLOBAL};
+        return c;
+    };
+
+    mConfigs.push_back(boolGlobal(PROP_AC_STATE));
+    mConfigs.push_back(boolGlobal(PROP_MAX_STATE));
+    mConfigs.push_back(boolGlobal(PROP_RECYCLE_STATE));
+
+    VpsPropConfig fanSpeed;
+    fanSpeed.propId = PROP_FAN_SPEED;
+    fanSpeed.type = Type::INT32;
+    fanSpeed.access = Access::READ_WRITE;
+    fanSpeed.changeMode = ChangeMode::ON_CHANGE;
+    fanSpeed.supportedAreas = {AREA_GLOBAL};
+    fanSpeed.minValue = 0.0f;
+    fanSpeed.maxValue = 12.0f;  // matches HvacViewModel's increaseFanSpeed/decrementFanSpeed clamp
+    mConfigs.push_back(fanSpeed);
+
+    mConfigs.push_back(boolGlobal(PROP_SYNC));
+    mConfigs.push_back(boolGlobal(PROP_AUTO_MODE));
+    mConfigs.push_back(boolGlobal(PROP_DEFROST));
+
+    VpsPropConfig ventMode;
+    ventMode.propId = PROP_VENTILATION_MODE;
+    ventMode.type = Type::INT32;
+    ventMode.access = Access::READ_WRITE;
+    ventMode.changeMode = ChangeMode::ON_CHANGE;
+    ventMode.supportedAreas = {AREA_GLOBAL};
+    ventMode.minValue = 1.0f;
+    ventMode.maxValue = 3.0f;  // 1=foot, 2=foot+face, 3=face
+    mConfigs.push_back(ventMode);
+
+    VpsPropConfig vehicleState;
+    vehicleState.propId = PROP_VEHICLE_STATE;
+    vehicleState.type = Type::INT32;
+    vehicleState.access = Access::READ_WRITE;
+    vehicleState.changeMode = ChangeMode::ON_CHANGE;
+    vehicleState.supportedAreas = {AREA_GLOBAL};
+    mConfigs.push_back(vehicleState);
+
+    VpsPropConfig tempOutside;
+    tempOutside.propId = PROP_TEMP_OUTSIDE;
+    tempOutside.type = Type::FLOAT;
+    tempOutside.access = Access::READ_WRITE;
+    tempOutside.changeMode = ChangeMode::CONTINUOUS;  // drifts continuously via the backend
+    tempOutside.supportedAreas = {AREA_GLOBAL};
+    tempOutside.minValue = -40.0f;
+    tempOutside.maxValue = 60.0f;
+    mConfigs.push_back(tempOutside);
+
+    VpsPropConfig temp;
+    temp.propId = PROP_TEMP;
+    temp.type = Type::FLOAT;
+    temp.access = Access::READ_WRITE;
+    temp.changeMode = ChangeMode::ON_CHANGE;
+    temp.supportedAreas = {DRIVER, PASSENGER};
+    temp.minValue = 16.0f;
+    temp.maxValue = 30.0f;
+    mConfigs.push_back(temp);
+
+    VpsPropConfig seatHeating;
+    seatHeating.propId = PROP_SEAT_HEATING;
+    seatHeating.type = Type::BOOL;
+    seatHeating.access = Access::READ_WRITE;
+    seatHeating.changeMode = ChangeMode::ON_CHANGE;
+    seatHeating.supportedAreas = {DRIVER, PASSENGER};
+    mConfigs.push_back(seatHeating);
+}
+
+const VpsPropConfig* HvacHandler::findConfig(int32_t propId) const {
+    for (const auto& config : mConfigs) {
+        if (config.propId == propId) {
+            return &config;
+        }
+    }
+    return nullptr;
 }
 
 bool HvacHandler::supportsProperty(int32_t propId) const {
-    return propId >= PROP_AC_STATE && propId <= PROP_TEMP_OUTSIDE;
+    return findConfig(propId) != nullptr;
 }
 
 bool HvacHandler::getProperty(int32_t propId, int32_t areaId, VpsPropValue* outValue) const {
-    std::lock_guard<std::mutex> lock(mMutex);
-    auto it = mStore.find({propId, areaId});
-    if (it == mStore.end()) {
-        ALOGW("getProperty: no stored value for propId=%d areaId=%d", propId, areaId);
+    const VpsPropConfig* config = findConfig(propId);
+    if (config == nullptr) {
+        ALOGW("getProperty: no config for propId=%d (not one of ours)", propId);
         return false;
     }
-    *outValue = VpsPropValue::ofFloat(it->second);
-    ALOGD("getProperty: propId=%d areaId=%d value=%f", propId, areaId, it->second);
+    if (!config->isReadable()) {
+        ALOGW("getProperty: propId=%d is write-only, rejecting read", propId);
+        return false;
+    }
+    if (!config->supportsArea(areaId)) {
+        ALOGW("getProperty: propId=%d does not support areaId=%d", propId, areaId);
+        return false;
+    }
+
+    float value = 0.0f;
+    if (!mBackend->getValue(propId, areaId, &value)) {
+        return false;
+    }
+    *outValue = VpsPropValue::ofFloat(value);
     return true;
 }
 
 bool HvacHandler::setProperty(int32_t propId, int32_t areaId, const VpsPropValue& value) {
-    ALOGD("setProperty: propId=%d areaId=%d value=%f", propId, areaId, value.asFloat());
-    {
-        std::lock_guard<std::mutex> lock(mMutex);
-        mStore[{propId, areaId}] = value.asFloat();
+    const VpsPropConfig* config = findConfig(propId);
+    if (config == nullptr) {
+        ALOGW("setProperty: no config for propId=%d (not one of ours)", propId);
+        return false;
     }
-    // Echo the confirmed new value back out as an event -- see class comment. This is the only
-    // path HvacService uses to learn a set actually took effect.
-    notify(propId, areaId);
-    return true;
+    if (!config->isWritable()) {
+        ALOGW("setProperty: propId=%d is read-only, rejecting write", propId);
+        return false;
+    }
+    if (!config->supportsArea(areaId)) {
+        ALOGW("setProperty: propId=%d does not support areaId=%d", propId, areaId);
+        return false;
+    }
+    if (!config->isInRange(value.asFloat())) {
+        ALOGW("setProperty: propId=%d value=%f out of range [%f, %f]", propId, value.asFloat(),
+              config->minValue, config->maxValue);
+        return false;
+    }
+
+    // The backend echoes the confirmed new value back out through onBackendValueChanged() -- see
+    // class comment. That's the only path AllianceCarHvacService uses to learn a set actually took effect.
+    return mBackend->setValue(propId, areaId, value.asFloat());
 }
 
 bool HvacHandler::subscribe(int32_t propId, int32_t areaId, float sampleRateHz,
@@ -120,39 +195,20 @@ void HvacHandler::unsubscribe(int32_t propId) {
     }
 }
 
-void HvacHandler::notify(int32_t propId, int32_t areaId) {
+void HvacHandler::onBackendValueChanged(int32_t propId, int32_t areaId, float value) {
     VpsEventCallback callback;
     {
         std::lock_guard<std::mutex> lock(mMutex);
         if (mSubscribedKeys.find({propId, areaId}) == mSubscribedKeys.end() || !mCallback) {
-            ALOGD("notify: propId=%d areaId=%d skipped (not subscribed or no callback)", propId, areaId);
+            ALOGD("onBackendValueChanged: propId=%d areaId=%d value=%f skipped (not subscribed or no callback)",
+                  propId, areaId, value);
             return;
         }
         callback = mCallback;
     }
-    ALOGD("notify: propId=%d areaId=%d firing callback", propId, areaId);
+    ALOGD("onBackendValueChanged: propId=%d areaId=%d value=%f firing callback", propId, areaId,
+          value);
     callback(propId, areaId);
-}
-
-// Simulates a real outside-air-temperature sensor: drifts PROP_TEMP_OUTSIDE by a small amount
-// every tick, independent of anything the HMI/Manager does, and fires the same event path a real
-// ECU push would.
-void HvacHandler::simulationLoop() {
-    float phase = 0.0f;
-    while (mRunning) {
-        std::this_thread::sleep_for(kSimTick);
-        if (!mRunning) {
-            break;
-        }
-        phase += 0.1f;
-        float outsideTemp = kDefaultOutsideTempC + std::sin(phase) * 3.0f;
-        ALOGD("simulationLoop: drifting PROP_TEMP_OUTSIDE to %f", outsideTemp);
-        {
-            std::lock_guard<std::mutex> lock(mMutex);
-            mStore[{PROP_TEMP_OUTSIDE, AREA_GLOBAL}] = outsideTemp;
-        }
-        notify(PROP_TEMP_OUTSIDE, AREA_GLOBAL);
-    }
 }
 
 }  // namespace vps

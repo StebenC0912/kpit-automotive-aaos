@@ -15,14 +15,19 @@
 
 #include "HvacHandler.h"
 #include "VpsDispatcher.h"
+#include "VpsPropertyId.h"
+
+using vps::AREA_GLOBAL;
+using vps::PROP_RECYCLE_STATE;
+using vps::PROP_SYNC;
 
 namespace {
 
-constexpr int32_t PROP_RECYCLE_STATE = 3;
-constexpr int32_t PROP_SYNC = 6;
+// Not a real propId under Stage 2's bit-packed scheme (VpsPropertyId.h) -- any value with no
+// matching config works here, since the point is just "routes to no handler".
 constexpr int32_t PROP_UNKNOWN = 999;
 
-constexpr int32_t AREA_GLOBAL = 0;
+}  // namespace
 
 class VpsDispatcherTest : public ::testing::Test {
 protected:
