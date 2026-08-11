@@ -10,11 +10,46 @@ import com.kpit.hvac.IHVACVehicleCallback;
 import com.kpit.hvac.IHVACVehicleService;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class AllianceCarHvacManager extends AllianceCarBaseManager<IHVACVehicleService> implements IHvacController {
     private static final String TAG = "AllianceCarHvacManager";
     private static final String SERVICE_NAME = "hvac_service";
+
+    // Cross-reference from this stub's own propIds (HvacProperties.java) to the equivalent real
+    // property in android.car.VehiclePropertyIds (packages/services/Car/car-lib/src/android/car/
+    // VehiclePropertyIds.java) -- a debug/logging aid only for the setProperty() log line below,
+    // never consulted for routing. AllianceCarHvacService keeps its own independent copy of this
+    // (see its class -- it must not depend on anything under this manager package), so this one
+    // is now solely for the manager's own use. A few of ours don't map cleanly onto a real
+    // property: PROP_VEHICLE_STATE is this demo's own "is the panel locked" concept with no real
+    // VHAL analog (omitted below); PROP_SEAT_HEATING maps to HVAC_SEAT_TEMPERATURE even though
+    // ours is a boolean and the real property is a signed level; PROP_SYNC maps to HVAC_DUAL_ON
+    // as the closest real equivalent of a driver/passenger sync toggle. Values are the literal
+    // ints from that real file (confirmed against it, not guessed) rather than an import, since
+    // this vendor app has no build dependency on car-lib.
+    private static final Map<Integer, Integer> REAL_VHAL_PROPERTY_IDS = new HashMap<>();
+    static {
+        REAL_VHAL_PROPERTY_IDS.put(HvacProperties.PROP_AC_STATE, 0x15200505);          // HVAC_AC_ON
+        REAL_VHAL_PROPERTY_IDS.put(HvacProperties.PROP_MAX_STATE, 0x15200506);         // HVAC_MAX_AC_ON
+        REAL_VHAL_PROPERTY_IDS.put(HvacProperties.PROP_RECYCLE_STATE, 0x15200508);     // HVAC_RECIRC_ON
+        REAL_VHAL_PROPERTY_IDS.put(HvacProperties.PROP_FAN_SPEED, 0x15400500);         // HVAC_FAN_SPEED
+        REAL_VHAL_PROPERTY_IDS.put(HvacProperties.PROP_TEMP, 0x15600503);              // HVAC_TEMPERATURE_SET
+        REAL_VHAL_PROPERTY_IDS.put(HvacProperties.PROP_SYNC, 0x15200509);              // HVAC_DUAL_ON
+        REAL_VHAL_PROPERTY_IDS.put(HvacProperties.PROP_SEAT_HEATING, 0x1540050B);      // HVAC_SEAT_TEMPERATURE
+        REAL_VHAL_PROPERTY_IDS.put(HvacProperties.PROP_VENTILATION_MODE, 0x15400501);  // HVAC_FAN_DIRECTION
+        REAL_VHAL_PROPERTY_IDS.put(HvacProperties.PROP_AUTO_MODE, 0x1520050A);         // HVAC_AUTO_ON
+        REAL_VHAL_PROPERTY_IDS.put(HvacProperties.PROP_DEFROST, 0x13200504);           // HVAC_DEFROSTER
+        REAL_VHAL_PROPERTY_IDS.put(HvacProperties.PROP_TEMP_OUTSIDE, 0x11600703);      // ENV_OUTSIDE_TEMPERATURE
+        // PROP_VEHICLE_STATE intentionally has no entry -- no real VHAL analog.
+    }
+
+    private static String realVhalPropertyIdLabel(int propId) {
+        Integer realId = REAL_VHAL_PROPERTY_IDS.get(propId);
+        return realId == null ? "none" : String.format("0x%08X", realId);
+    }
 
     private static AllianceCarHvacManager sInstance;
 
@@ -150,7 +185,8 @@ public class AllianceCarHvacManager extends AllianceCarBaseManager<IHVACVehicleS
     }
 
     private void setProperty(int propertyId, int areaId, float value) {
-        Log.d(TAG, "setProperty: propertyId=" + propertyId + " areaId=" + areaId + " value=" + value);
+        Log.d(TAG, "setProperty: propertyId=" + propertyId + " (real VHAL="
+                + realVhalPropertyIdLabel(propertyId) + ") areaId=" + areaId + " value=" + value);
         IHVACVehicleService service = getService();
         if (service == null) {
             Log.w(TAG, "setProperty: service not connected, propertyId=" + propertyId);
