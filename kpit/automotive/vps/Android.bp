@@ -6,11 +6,16 @@ package {
 // COMPONENT 3 (instruction.md section I.3): the polymorphic Hardware/Middleware layer.
 // VpsDispatcher owns zero domain knowledge -- it just routes get/set/subscribe calls by propId to
 // whichever registered IVpsHandler (HvacHandler; SeatHandler once Seat is implemented) claims that
-// property. Called in-process, directly, from base_comfort_jni's base_comfort_vhal_jni.cpp
-// (section II steps 5-6) -- no Binder/HAL service registration involved.
+// property. Linked into vendor.kpit.vps-service (service/, VHAL-alignment Stage 4 --
+// kpit/docs/03-implementation-status.md item 13), the only process that talks to it in-process now;
+// base_comfort_vhal_jni.cpp reaches it over Binder instead (see service/'s own header comment).
+// vendor: true puts this back on /vendor/lib64 -- it was /system-only before Stage 4 gave it a real
+// HAL boundary to cross (10-build-and-product-integration.md's sepolicy section explains why a
+// coredomain process couldn't load a /vendor libvps.so directly).
 // -----------------------------------------------------------------------------------------------
 cc_library_shared {
     name: "libvps",
+    vendor: true,
     export_include_dirs: ["include"],
     srcs: [
         "src/VpsDispatcher.cpp",
@@ -29,11 +34,13 @@ cc_library_shared {
 }
 
 // Exercises libvps directly -- HvacHandler and VpsDispatcher -- with no JNI, no Binder, no
-// AllianceCarHvacService involved. See kpit/docs/11-testing-hvac.md: the adb `service call hvac_service`
-// path already traverses VpsDispatcher, so testing this layer in isolation means going *under*
-// AllianceCarHvacService instead, not "through" it. Links against the same libvps.so the device ships.
+// AllianceCarHvacService/vendor.kpit.vps-service involved. See kpit/docs/11-testing-hvac.md: the
+// adb `service call hvac_service` path already traverses VpsDispatcher (now via
+// vendor.kpit.vps-service, Stage 4), so testing this layer in isolation means going *under* all of
+// that, not "through" it. vendor: true to stay link-compatible with the now-vendor libvps.
 cc_test {
     name: "libvps_test",
+    vendor: true,
     test_suites: ["device-tests"],
     shared_libs: [
         "libvps",

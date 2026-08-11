@@ -1,0 +1,4 @@
+service vendor.kpit.vps-service /vendor/bin/hw/vendor.kpit.vps-service
+    class hal
+    user system
+    group system

@@ -1,0 +1,24 @@
+package {
+    default_applicable_licenses: ["Android-Apache-2.0"],
+}
+
+// -----------------------------------------------------------------------------------------------
+// VHAL-alignment Stage 4 (kpit/docs/03-implementation-status.md item 13): the AIDL boundary between
+// vendor.kpit.vps-service (vps/service/, /vendor, vendor: true) and its one client,
+// libbase_comfort_jni (/system, coredomain). stability: "vintf" is required for that crossing --
+// libbinder rejects a non-vintf-stable AIDL interface used across the system/vendor partition
+// boundary. Left unversioned/unfrozen (no versions_with_info) since this is a local, still-evolving
+// vendor interface, not one being published for other trees to depend on -- the NDK backend target
+// this generates is vendor.kpit.vps-ndk.
+// -----------------------------------------------------------------------------------------------
+aidl_interface {
+    name: "vendor.kpit.vps",
+    vendor_available: true,
+    srcs: ["vendor/kpit/vps/*.aidl"],
+    stability: "vintf",
+    backend: {
+        java: {
+            enabled: false,
+        },
+    },
+}

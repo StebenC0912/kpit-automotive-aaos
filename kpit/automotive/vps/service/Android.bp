@@ -1,0 +1,36 @@
+package {
+    default_applicable_licenses: ["Android-Apache-2.0"],
+}
+
+// -----------------------------------------------------------------------------------------------
+// vendor.kpit.vps-service: VHAL-alignment Stage 4's HAL daemon (kpit/docs/03-implementation-status.md
+// item 13). Hosts vps::VpsDispatcher/HvacHandler (libvps, now vendor: true -- see ../Android.bp)
+// behind the vendor.kpit.vps AIDL interface (../aidl/), registered with servicemanager as
+// vendor.kpit.vps.IVpsService/default. base_comfort_vhal_jni.cpp (/system, coredomain) is this
+// daemon's only client, reached over Binder instead of dlopen-ing libvps.so directly -- the
+// Treble-sanctioned crossing point 10-build-and-product-integration.md's sepolicy section
+// identified as the only way to put libvps back on /vendor.
+// -----------------------------------------------------------------------------------------------
+cc_binary {
+    name: "vendor.kpit.vps-service",
+    vendor: true,
+    relative_install_path: "hw",
+    init_rc: ["vps-service.rc"],
+    vintf_fragments: ["vps-service.xml"],
+    srcs: [
+        "VpsServiceImpl.cpp",
+        "service_main.cpp",
+    ],
+    shared_libs: [
+        "libbase",
+        "liblog",
+        "libbinder_ndk",
+        "vendor.kpit.vps-ndk",
+        "libvps",
+    ],
+    cflags: [
+        "-Wall",
+        "-Werror",
+        "-Wextra",
+    ],
+}
