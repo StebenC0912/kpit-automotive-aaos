@@ -25,7 +25,16 @@
       "Bash(git apply *)",
       "Bash(cd *)",
       "Bash(git reset *)",
-      "Bash(git diff *)"
+      "Bash(git diff *)",
+      "Bash(cat)",
+      "Bash(g++ -std=c++17 -c /tmp/log_stub.cpp -o /tmp/log_stub.o)",
+      "Bash(g++ /tmp/HvacHandler.o /tmp/VpsDispatcher.o /tmp/VpsPropConfig.o /tmp/HvacHandlerTest.o /tmp/VpsDispatcherTest.o /tmp/gtest-all.o /tmp/gtest_main.o /tmp/log_stub.o -lpthread -o /tmp/libvps_test)",
+      "Bash(/tmp/libvps_test)",
+      "Bash(grep -n \"Stage 1\\\\|Stage 2\\\\|Stage 3\\\\|Stage 4\\\\|item 13\\\\|13\\\\. \\\\*\\\\*\\\\`vps/\\\\`\" /mnt/storage/android_auto_os/vendor/kpit/docs/03-implementation-status.md)",
+      "Bash(timeout 60 find /mnt/storage/android_auto_os/packages/services/Car -iname \"*VehicleProperty*\")",
+      "Bash(sed -i -e s/BaseComfortService/AllianceCarBaseService/g -e s/HvacService/AllianceCarHvacService/g HvacService.java)",
+      "Bash(sed -i -e s/BaseComfortManager/AllianceCarBaseManager/g -e s/HvacManager/AllianceCarHvacManager/g HvacManager.java)",
+      "Bash(git status *)"
     ]
   }
 }
