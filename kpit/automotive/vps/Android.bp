@@ -27,9 +27,9 @@ cc_library_shared {
 }
 
 // Exercises libvps directly -- HvacHandler and VpsDispatcher -- with no JNI, no Binder, no
-// HvacService involved. See kpit/docs/11-testing-hvac.md: the adb `service call hvac_service`
+// AllianceCarHvacService involved. See kpit/docs/11-testing-hvac.md: the adb `service call hvac_service`
 // path already traverses VpsDispatcher, so testing this layer in isolation means going *under*
-// HvacService instead, not "through" it. Links against the same libvps.so the device ships.
+// AllianceCarHvacService instead, not "through" it. Links against the same libvps.so the device ships.
 cc_test {
     name: "libvps_test",
     test_suites: ["device-tests"],

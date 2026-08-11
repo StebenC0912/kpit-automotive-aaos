@@ -6,7 +6,7 @@
 namespace vps {
 
 // Tagged value carried across the VpsDispatcher <-> IVpsHandler boundary. Mirrors the three
-// native get/set families BaseComfortService.java declares (nativeGet/SetIntProperty,
+// native get/set families AllianceCarBaseService.java declares (nativeGet/SetIntProperty,
 // nativeGet/SetFloatProperty, nativeGet/SetBoolProperty) so a handler never has to guess which
 // one the JNI caller used.
 struct VpsPropValue {
@@ -73,7 +73,7 @@ struct VpsPropValue {
 
 // Fired by a handler whenever a subscribed property changes out from under the Java layer --
 // e.g. an ECU push, or (for now) a simulated sensor tick. VpsDispatcher supplies one callback per
-// subscribe() call, bound to the BaseComfortService instance that asked for it.
+// subscribe() call, bound to the AllianceCarBaseService instance that asked for it.
 using VpsEventCallback = std::function<void(int32_t propId, int32_t areaId)>;
 
 // One IVpsHandler per Comfort domain (HvacHandler, future SeatHandler, ...). Per instruction.md

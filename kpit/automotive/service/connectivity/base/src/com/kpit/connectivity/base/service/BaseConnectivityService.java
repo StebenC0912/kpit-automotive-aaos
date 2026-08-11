@@ -12,7 +12,7 @@ import java.util.concurrent.Executors;
 /**
  * Base class for every System Service in the Connectivity domain (e.g. {@code IviBluetoothService}).
  *
- * <p>Unlike {@code BaseComfortService}, there is NO native VHAL bridge here: Connectivity domains
+ * <p>Unlike {@code AllianceCarBaseService}, there is NO native VHAL bridge here: Connectivity domains
  * (Bluetooth, WiFi) own no vehicle signal, so vps::VpsDispatcher (Component 3) is never involved
  * (instruction.md section VI — "no VHAL/JNI"). Concrete services instead acquire Android's own
  * framework/hidden profile or session proxies directly (e.g. {@code BluetoothHeadsetClient},
@@ -20,7 +20,7 @@ import java.util.concurrent.Executors;
  * {@link #onConnectivitySourceConnect()}, and fan out state changes captured from their own
  * {@code BroadcastReceiver}s via {@link #broadcastToListeners}.
  *
- * <p>What this base DOES still own, identically to {@code BaseComfortService}:
+ * <p>What this base DOES still own, identically to {@code AllianceCarBaseService}:
  * <ul>
  *     <li>A capped {@link ExecutorService} (5 threads) so Binder IPC, profile-proxy calls and
  *         broadcast-receiver callbacks never run on the main thread (rule IV.1).</li>

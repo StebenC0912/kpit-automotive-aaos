@@ -2,8 +2,8 @@
 <!--
     HVAC domain manifest. Inherits the general Comfort permission surface declared in
     service/comfort/base/AndroidManifest.xml (com.kpit.comfort.permission.ACCESS_COMFORT_SERVICE)
-    and layers on an HVAC-specific bind permission so HvacService can be gated independently of
-    other Comfort domains (seat, ...) that share the same general permission.
+    and layers on an HVAC-specific bind permission so AllianceCarHvacService can be gated
+    independently of other Comfort domains (seat, ...) that share the same general permission.
 -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.kpit.hvac"
@@ -21,7 +21,7 @@
         android:persistent="true"
         android:directBootAware="true">
         <service
-            android:name="com.kpit.hvac.service.HvacService"
+            android:name="com.kpit.hvac.service.AllianceCarHvacService"
             android:permission="com.kpit.hvac.permission.BIND_HVAC_SERVICE"
             android:exported="true" />
     </application>

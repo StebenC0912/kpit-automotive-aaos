@@ -12,8 +12,8 @@ import com.kpit.hmi.hvac.model.HvacTempState;
 import com.kpit.hmi.hvac.model.HvacSystemBelowState;
 import com.kpit.hmi.hvac.model.HvacFanState;
 
+import com.kpit.hvac.manager.AllianceCarHvacManager;
 import com.kpit.hvac.manager.HvacListener;
-import com.kpit.hvac.manager.HvacManager;
 import com.kpit.hvac.manager.SystemListener;
 
 public class HvacViewModel extends AndroidViewModel implements HvacListener, SystemListener {
@@ -23,7 +23,7 @@ public class HvacViewModel extends AndroidViewModel implements HvacListener, Sys
     private final MutableLiveData<HvacSystemBelowState> mHvacSystemBelowStateLiveData = new MutableLiveData<>();
     private final MutableLiveData<HvacFanState> mHvacFanStateLiveDate = new MutableLiveData<>();
     private final MutableLiveData<Boolean> mIsOtherControlsEnable = new MutableLiveData<>();
-    private final HvacManager mHvacVehicleManager;
+    private final AllianceCarHvacManager mHvacVehicleManager;
     private int mCurrentVehicleState = -1;
     private boolean mIsAcOn = false;
     private boolean mCachedOtherControlsEnable = false;
@@ -44,8 +44,8 @@ public class HvacViewModel extends AndroidViewModel implements HvacListener, Sys
 
     public HvacViewModel(@NonNull Application application) {
         super(application);
-        Log.d(TAG, "HvacViewModel: created, registering with HvacManager");
-        mHvacVehicleManager = HvacManager.getInstance();
+        Log.d(TAG, "HvacViewModel: created, registering with AllianceCarHvacManager");
+        mHvacVehicleManager = AllianceCarHvacManager.getInstance();
         mHvacVehicleManager.registerPropertyListener(this);
         mHvacVehicleManager.registerSystemListener(this);
 
@@ -406,7 +406,7 @@ public class HvacViewModel extends AndroidViewModel implements HvacListener, Sys
 
     @Override
     public void onCleared() {
-        Log.d(TAG, "onCleared: unregistering from HvacManager");
+        Log.d(TAG, "onCleared: unregistering from AllianceCarHvacManager");
         mHvacVehicleManager.unregisterAll();
         super.onCleared();
     }

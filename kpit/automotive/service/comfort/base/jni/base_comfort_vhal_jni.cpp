@@ -1,14 +1,14 @@
 /*
  * base_comfort_vhal_jni.cpp
  *
- * JNI bridge shared by every Comfort domain service (HvacService, SeatService, ...). Calls
+ * JNI bridge shared by every Comfort domain service (AllianceCarHvacService, SeatService, ...). Calls
  * straight into vps::VpsDispatcher (libvps.so, Component 3 -- instruction.md section I.3),
  * in-process, matching section II steps 5-6 exactly: "JNI passes the property id and value to the
  * C++ VpsDispatcher, which routes to HvacHandler/SeatHandler based on the property id." There is
  * no Binder/HAL registration on this path -- VpsDispatcher is a plain in-process C++ singleton
  * linked into this .so, not a separate service.
  *
- * One VhalBridge is created per BaseComfortService instance (per process), holding just enough to
+ * One VhalBridge is created per AllianceCarBaseService instance (per process), holding just enough to
  * call back into the owning Java service (onNativePropertyEvent) whenever VpsDispatcher reports a
  * subscribed property changed.
  */
@@ -28,15 +28,15 @@ namespace {
 
 struct VhalBridge {
     JavaVM* javaVm = nullptr;
-    jobject serviceGlobalRef = nullptr;         // global ref to the owning BaseComfortService
-    jmethodID onPropertyEventMethod = nullptr;  // BaseComfortService#onNativePropertyEvent(II)V
+    jobject serviceGlobalRef = nullptr;         // global ref to the owning AllianceCarBaseService
+    jmethodID onPropertyEventMethod = nullptr;  // AllianceCarBaseService#onNativePropertyEvent(II)V
 };
 
 VhalBridge* bridgeFromHandle(jlong handle) {
     return reinterpret_cast<VhalBridge*>(static_cast<intptr_t>(handle));
 }
 
-// Registered exactly once per process, regardless of which Comfort domain's BaseComfortService
+// Registered exactly once per process, regardless of which Comfort domain's AllianceCarBaseService
 // happens to load this library first. Every IVpsHandler only ever answers propIds it owns (see
 // IVpsHandler::supportsProperty), so it's safe -- and far simpler than plumbing a domain name
 // down through nativeInit()'s fixed no-arg signature -- to register all known handlers
@@ -52,7 +52,7 @@ void ensureHandlersRegistered() {
 extern "C" {
 
 JNIEXPORT jlong JNICALL
-Java_com_kpit_comfort_base_service_BaseComfortService_nativeInit(JNIEnv* env, jobject thiz) {
+Java_com_kpit_comfort_base_service_AllianceCarBaseService_nativeInit(JNIEnv* env, jobject thiz) {
     ALOGD("nativeInit: initializing VHAL bridge");
     ensureHandlersRegistered();
 
@@ -67,7 +67,7 @@ Java_com_kpit_comfort_base_service_BaseComfortService_nativeInit(JNIEnv* env, jo
     bridge->onPropertyEventMethod = env->GetMethodID(serviceClass, "onNativePropertyEvent", "(II)V");
     env->DeleteLocalRef(serviceClass);
     if (bridge->onPropertyEventMethod == nullptr) {
-        ALOGE("BaseComfortService is missing onNativePropertyEvent(int,int)");
+        ALOGE("AllianceCarBaseService is missing onNativePropertyEvent(int,int)");
         delete bridge;
         return 0;
     }
@@ -78,7 +78,7 @@ Java_com_kpit_comfort_base_service_BaseComfortService_nativeInit(JNIEnv* env, jo
 }
 
 JNIEXPORT void JNICALL
-Java_com_kpit_comfort_base_service_BaseComfortService_nativeRelease(JNIEnv* env, jobject /*thiz*/,
+Java_com_kpit_comfort_base_service_AllianceCarBaseService_nativeRelease(JNIEnv* env, jobject /*thiz*/,
                                                                       jlong handle) {
     ALOGD("nativeRelease: handle=%p", bridgeFromHandle(handle));
     VhalBridge* bridge = bridgeFromHandle(handle);
@@ -92,7 +92,7 @@ Java_com_kpit_comfort_base_service_BaseComfortService_nativeRelease(JNIEnv* env,
 }
 
 JNIEXPORT jboolean JNICALL
-Java_com_kpit_comfort_base_service_BaseComfortService_nativeSubscribe(JNIEnv* /*env*/,
+Java_com_kpit_comfort_base_service_AllianceCarBaseService_nativeSubscribe(JNIEnv* /*env*/,
                                                                         jobject /*thiz*/,
                                                                         jlong handle, jint propId,
                                                                         jint areaId,
@@ -132,7 +132,7 @@ Java_com_kpit_comfort_base_service_BaseComfortService_nativeSubscribe(JNIEnv* /*
 }
 
 JNIEXPORT void JNICALL
-Java_com_kpit_comfort_base_service_BaseComfortService_nativeUnsubscribe(JNIEnv* /*env*/,
+Java_com_kpit_comfort_base_service_AllianceCarBaseService_nativeUnsubscribe(JNIEnv* /*env*/,
                                                                           jobject /*thiz*/,
                                                                           jlong /*handle*/,
                                                                           jint propId) {
@@ -141,7 +141,7 @@ Java_com_kpit_comfort_base_service_BaseComfortService_nativeUnsubscribe(JNIEnv* 
 }
 
 JNIEXPORT jboolean JNICALL
-Java_com_kpit_comfort_base_service_BaseComfortService_nativeSetIntProperty(JNIEnv* /*env*/,
+Java_com_kpit_comfort_base_service_AllianceCarBaseService_nativeSetIntProperty(JNIEnv* /*env*/,
                                                                              jobject /*thiz*/,
                                                                              jlong /*handle*/,
                                                                              jint propId,
@@ -153,7 +153,7 @@ Java_com_kpit_comfort_base_service_BaseComfortService_nativeSetIntProperty(JNIEn
 }
 
 JNIEXPORT jint JNICALL
-Java_com_kpit_comfort_base_service_BaseComfortService_nativeGetIntProperty(JNIEnv* /*env*/,
+Java_com_kpit_comfort_base_service_AllianceCarBaseService_nativeGetIntProperty(JNIEnv* /*env*/,
                                                                              jobject /*thiz*/,
                                                                              jlong /*handle*/,
                                                                              jint propId,
@@ -165,7 +165,7 @@ Java_com_kpit_comfort_base_service_BaseComfortService_nativeGetIntProperty(JNIEn
 }
 
 JNIEXPORT jboolean JNICALL
-Java_com_kpit_comfort_base_service_BaseComfortService_nativeSetFloatProperty(JNIEnv* /*env*/,
+Java_com_kpit_comfort_base_service_AllianceCarBaseService_nativeSetFloatProperty(JNIEnv* /*env*/,
                                                                                jobject /*thiz*/,
                                                                                jlong /*handle*/,
                                                                                jint propId,
@@ -177,7 +177,7 @@ Java_com_kpit_comfort_base_service_BaseComfortService_nativeSetFloatProperty(JNI
 }
 
 JNIEXPORT jfloat JNICALL
-Java_com_kpit_comfort_base_service_BaseComfortService_nativeGetFloatProperty(JNIEnv* /*env*/,
+Java_com_kpit_comfort_base_service_AllianceCarBaseService_nativeGetFloatProperty(JNIEnv* /*env*/,
                                                                                jobject /*thiz*/,
                                                                                jlong /*handle*/,
                                                                                jint propId,
@@ -189,7 +189,7 @@ Java_com_kpit_comfort_base_service_BaseComfortService_nativeGetFloatProperty(JNI
 }
 
 JNIEXPORT jboolean JNICALL
-Java_com_kpit_comfort_base_service_BaseComfortService_nativeSetBoolProperty(JNIEnv* /*env*/,
+Java_com_kpit_comfort_base_service_AllianceCarBaseService_nativeSetBoolProperty(JNIEnv* /*env*/,
                                                                               jobject /*thiz*/,
                                                                               jlong /*handle*/,
                                                                               jint propId,
@@ -202,7 +202,7 @@ Java_com_kpit_comfort_base_service_BaseComfortService_nativeSetBoolProperty(JNIE
 }
 
 JNIEXPORT jboolean JNICALL
-Java_com_kpit_comfort_base_service_BaseComfortService_nativeGetBoolProperty(JNIEnv* /*env*/,
+Java_com_kpit_comfort_base_service_AllianceCarBaseService_nativeGetBoolProperty(JNIEnv* /*env*/,
                                                                               jobject /*thiz*/,
                                                                               jlong /*handle*/,
                                                                               jint propId,

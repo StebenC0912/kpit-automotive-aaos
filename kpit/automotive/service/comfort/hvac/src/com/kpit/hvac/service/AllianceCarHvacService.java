@@ -5,14 +5,14 @@ import android.os.IBinder;
 import android.os.ServiceManager;
 import android.util.Log;
 
-import com.kpit.comfort.base.service.BaseComfortService;
+import com.kpit.comfort.base.service.AllianceCarBaseService;
 import com.kpit.hvac.HvacEvent;
 import com.kpit.hvac.IHVACVehicleCallback;
 import com.kpit.hvac.IHVACVehicleService;
 import com.kpit.hvac.manager.HvacProperties;
 
-public class HvacService extends BaseComfortService<IHVACVehicleCallback> {
-    private static final String TAG = "HvacService";
+public class AllianceCarHvacService extends AllianceCarBaseService<IHVACVehicleCallback> {
+    private static final String TAG = "AllianceCarHvacService";
     private static final String SERVICE_NAME = "hvac_service";
     private static final float DEFAULT_SAMPLE_RATE_HZ = 5.0f;
     private static final int NATIVE_HANDLE_WAIT_ATTEMPTS = 20;

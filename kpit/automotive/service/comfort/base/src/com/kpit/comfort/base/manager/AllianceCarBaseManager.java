@@ -7,7 +7,7 @@ import android.os.ServiceManager;
 import android.util.Log;
 
 /**
- * Base class for every SDK-side Manager in the Comfort domain (e.g. {@code HvacManager}).
+ * Base class for every SDK-side Manager in the Comfort domain (e.g. {@code AllianceCarHvacManager}).
  *
  * <p>This is the ONLY surface HMI applications are allowed to link against for talking to a
  * Comfort domain service. It hides the Binder plumbing (service lookup, death recovery,
@@ -20,9 +20,9 @@ import android.util.Log;
  *
  * @param <T> the AIDL service interface this manager talks to (e.g. {@code IHvacService}).
  */
-public abstract class BaseComfortManager<T extends IInterface> {
+public abstract class AllianceCarBaseManager<T extends IInterface> {
 
-    private static final String TAG = "BaseComfortManager";
+    private static final String TAG = "AllianceCarBaseManager";
 
     private final String mServiceName;
     private final Object mLock = new Object();
@@ -44,7 +44,7 @@ public abstract class BaseComfortManager<T extends IInterface> {
      * @param serviceName the name the concrete service was published under via
      *                     {@code ServiceManager.addService(serviceName, this)}.
      */
-    protected BaseComfortManager(String serviceName) {
+    protected AllianceCarBaseManager(String serviceName) {
         mServiceName = serviceName;
     }
 

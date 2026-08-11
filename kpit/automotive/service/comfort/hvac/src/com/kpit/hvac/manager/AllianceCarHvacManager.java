@@ -4,7 +4,7 @@ import android.os.IBinder;
 import android.os.RemoteException;
 import android.util.Log;
 
-import com.kpit.comfort.base.manager.BaseComfortManager;
+import com.kpit.comfort.base.manager.AllianceCarBaseManager;
 import com.kpit.hvac.HvacEvent;
 import com.kpit.hvac.IHVACVehicleCallback;
 import com.kpit.hvac.IHVACVehicleService;
@@ -12,24 +12,24 @@ import com.kpit.hvac.IHVACVehicleService;
 import java.util.ArrayList;
 import java.util.List;
 
-public class HvacManager extends BaseComfortManager<IHVACVehicleService> implements IHvacController {
-    private static final String TAG = "HvacManager";
+public class AllianceCarHvacManager extends AllianceCarBaseManager<IHVACVehicleService> implements IHvacController {
+    private static final String TAG = "AllianceCarHvacManager";
     private static final String SERVICE_NAME = "hvac_service";
 
-    private static HvacManager sInstance;
+    private static AllianceCarHvacManager sInstance;
 
     private final List<HvacListener> hvacListenerList = new ArrayList<>();
     private final List<SystemListener> systemListenerList = new ArrayList<>();
     private int currentVehicleStates = -1;
 
-    public static synchronized HvacManager getInstance() {
+    public static synchronized AllianceCarHvacManager getInstance() {
         if (sInstance == null) {
-            sInstance = new HvacManager();
+            sInstance = new AllianceCarHvacManager();
         }
         return sInstance;
     }
 
-    public HvacManager() {
+    public AllianceCarHvacManager() {
         super(SERVICE_NAME);
     }
 

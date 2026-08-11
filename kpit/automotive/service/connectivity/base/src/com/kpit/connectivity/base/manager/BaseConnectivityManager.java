@@ -18,10 +18,10 @@ import android.util.Log;
  *     <li>Call {@link #getService()} whenever they need to make a remote call.</li>
  * </ol>
  *
- * <p>Structurally identical to {@code BaseComfortManager} — Connectivity domain services are
+ * <p>Structurally identical to {@code AllianceCarBaseManager} — Connectivity domain services are
  * looked up via {@link ServiceManager#getService(String)} the same way Comfort domain services
  * are (instruction.md section VI: "IviBluetoothManager ... delegates over Binder/AIDL to
- * IviBluetoothService, same as HvacManager does today").
+ * IviBluetoothService, same as AllianceCarHvacManager does today").
  *
  * @param <T> the AIDL service interface this manager talks to (e.g. {@code IIviBluetoothService}).
  */

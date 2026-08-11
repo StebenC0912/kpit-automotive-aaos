@@ -6,7 +6,7 @@ package {
 // TODO(seat): placeholder wiring only. This module does not build yet — none of the paths below
 // exist: AndroidManifest.xml, aidl/com/kpit/seat/*.aidl, or src/**/*.java. Mirrors hvac/Android.bp
 // (service/comfort/hvac/Android.bp); fill in AIDL (ISeatVehicleService/ISeatVehicleCallback),
-// SeatManager/SeatService (extending BaseComfortManager/BaseComfortService), and
+// SeatManager/SeatService (extending AllianceCarBaseManager/AllianceCarBaseService), and
 // AndroidManifest.xml (seat-specific permission layered on base-comfort-permissions, per
 // instruction.md IV.4) before uncommenting.
 // -----------------------------------------------------------------------------------------------

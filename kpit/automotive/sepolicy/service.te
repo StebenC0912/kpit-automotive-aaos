@@ -4,7 +4,7 @@ type hvac_service, service_manager_type;
 # system/sepolicy/public/service.te - redeclaring it here causes a
 # "Duplicate declaration of type" error from checkpolicy.
 
-# HvacService/HvacManager and IviBluetoothService/IviBluetoothManager all run under
+# AllianceCarHvacService/AllianceCarHvacManager and IviBluetoothService/IviBluetoothManager all run under
 # system_app - both apps declare sharedUserId="android.uid.system", which
 # seapp_contexts maps to domain system_app (not platform_app). Without these, retyping
 # the services off default_android_service breaks their own addService()/getService()

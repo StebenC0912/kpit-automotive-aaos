@@ -10,7 +10,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 /**
- * Base class for every System Service in the Comfort domain (e.g. {@code HvacService}).
+ * Base class for every System Service in the Comfort domain (e.g. {@code AllianceCarHvacService}).
  *
  * <p>Owns everything domain services would otherwise have to duplicate:
  * <ul>
@@ -26,9 +26,9 @@ import java.util.concurrent.Executors;
  * @param <T> the AIDL listener interface this service fans events out to
  *            (e.g. {@code IHvacListener}).
  */
-public abstract class BaseComfortService<T extends IInterface> extends Service {
+public abstract class AllianceCarBaseService<T extends IInterface> extends Service {
 
-    protected static final String TAG = "BaseComfortService";
+    protected static final String TAG = "AllianceCarBaseService";
 
     private static final int THREAD_POOL_SIZE = 5;
 
@@ -101,7 +101,7 @@ public abstract class BaseComfortService<T extends IInterface> extends Service {
         super.onDestroy();
     }
 
-    // ---- Helpers for concrete services (HvacService, SeatService, ...) -------------------------
+    // ---- Helpers for concrete services (AllianceCarHvacService, SeatService, ...) ---------------
 
     /** Current native handle, or 0 if the VHAL bridge has not finished initializing yet. */
     protected final long getNativeHandle() {

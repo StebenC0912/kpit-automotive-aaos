@@ -14,7 +14,7 @@ import java.util.List;
 /**
  * SDK client API for the Bluetooth connectivity domain (instruction.md section VI). Resolves
  * {@code IviBluetoothService} via {@code ServiceManager.getService()} the same way
- * {@code HvacManager} resolves {@code HvacService} — see {@code BaseConnectivityManager}.
+ * {@code AllianceCarHvacManager} resolves {@code AllianceCarHvacService} — see {@code BaseConnectivityManager}.
  */
 public class IviBluetoothManager extends BaseConnectivityManager<IIviBluetoothService> {
     private static final String TAG = "IviBluetoothManager";

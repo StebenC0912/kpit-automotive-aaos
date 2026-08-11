@@ -13,7 +13,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.kpit.comfort.base">
 
-    <!-- Required to bind ANY Comfort domain system service (HvacService, SeatService, ...). -->
+    <!-- Required to bind ANY Comfort domain system service (AllianceCarHvacService, SeatService, ...). -->
     <permission
         android:name="com.kpit.comfort.permission.BIND_COMFORT_SERVICE"
         android:protectionLevel="signature" />
