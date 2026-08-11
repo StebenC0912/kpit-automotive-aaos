@@ -15,7 +15,7 @@ PRODUCT_PACKAGES += \
     hvac-service \
     bluetooth-app \
     bluetooth-service \
-    libvps \
+    vendor.kpit.vps-service \
     libbase_comfort_jni \
     privapp_permissions_bluetooth.xml
 
@@ -38,12 +38,14 @@ BOARD_SEPOLICY_DIRS += vendor/kpit/automotive/sepolicy
 # build fails with "produces files inside ... artifact path requirement".
 #
 #
-# libvps/libbase_comfort_jni were originally vendor:true (installed to /vendor/lib64,
-# outside this requirement's ROOT/SYSTEM scope) but were later moved to /system (lib +
-# lib64, 32- and 64-bit) per instruction.md section X's SEPolicy write-up - coredomain
-# system_app processes can't load /vendor libraries under Full-Treble neverallow rules.
-# That partition move puts them under TARGET_COPY_OUT_SYSTEM too, so they need the same
-# allowlisting as the priv-app packages below.
+# libbase_comfort_jni was originally vendor:true (installed to /vendor/lib64, outside this
+# requirement's ROOT/SYSTEM scope) but was moved to /system (lib + lib64, 32- and 64-bit) per
+# instruction.md section X's SEPolicy write-up - coredomain system_app processes can't load
+# /vendor libraries under Full-Treble neverallow rules. That partition move puts it under
+# TARGET_COPY_OUT_SYSTEM too, so it needs the same allowlisting as the priv-app packages below.
+# libvps went the other way in VHAL-alignment Stage 4 (03-implementation-status.md item 13):
+# it's vendor.kpit.vps-service's dependency now, not hvac-service's, so it moved back to
+# /vendor/lib64 - outside TARGET_COPY_OUT_SYSTEM, no allowlist entry needed.
 #
 PRODUCT_ARTIFACT_PATH_REQUIREMENT_ALLOWED_LIST += \
     system/etc/permissions/privapp_permissions_bluetooth.xml \
@@ -52,6 +54,4 @@ PRODUCT_ARTIFACT_PATH_REQUIREMENT_ALLOWED_LIST += \
     system/priv-app/hvac-app/% \
     system/priv-app/hvac-service/% \
     system/lib/libbase_comfort_jni.so \
-    system/lib/libvps.so \
-    system/lib64/libbase_comfort_jni.so \
-    system/lib64/libvps.so
+    system/lib64/libbase_comfort_jni.so

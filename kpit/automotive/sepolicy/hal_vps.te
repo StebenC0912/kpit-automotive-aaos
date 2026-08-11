@@ -1,0 +1,39 @@
+# VHAL-alignment Stage 4 (kpit/docs/03-implementation-status.md item 13): sepolicy for the real
+# Binder HAL boundary between vendor.kpit.vps-service (/vendor, its own domain) and hvac-service
+# (system_app, coredomain). Modeled 1:1 on the real AOSP hal_vehicle convention --
+# system/sepolicy/public/hal_vehicle.te + system/sepolicy/vendor/hal_vehicle_default.te -- using our
+# own hal_vps attribute rather than the real hal_vehicle (that attribute belongs to the actual
+# android.hardware.automotive.vehicle VHAL already present in this tree, e.g. the car emulator's own
+# VHAL under device/generic/car/emulator/ -- unrelated to this vendor demo stack, not something to
+# share a type with).
+
+# service_manager type for vendor.kpit.vps.IVpsService/default, same style as the existing
+# hvac_service/bluetooth_service declarations below.
+type vps_service, service_manager_type;
+
+# Declares hal_vps / hal_vps_client / hal_vps_server attributes, then grants:
+#   - hal_vps_client (system_app, via hal_client_domain below): find on vps_service
+#   - hal_vps_server (vendor_kpit_vps_default, via hal_server_domain below): add on vps_service
+hal_attribute(vps)
+hal_attribute_service(hal_vps, vps_service)
+
+# Binder IPC in both directions -- client to server for every IVpsService call, server back to
+# client for IVpsCallback::onPropertyEvent() (the property-change push, see
+# vps/aidl/vendor/kpit/vps/IVpsCallback.aidl).
+binder_call(hal_vps_client, hal_vps_server)
+binder_call(hal_vps_server, hal_vps_client)
+
+# vendor.kpit.vps-service's own process domain (vps/service/vps-service.rc).
+type vendor_kpit_vps_default, domain;
+type vendor_kpit_vps_default_exec, exec_type, vendor_file_type, file_type;
+init_daemon_domain(vendor_kpit_vps_default)
+hal_server_domain(vendor_kpit_vps_default, hal_vps)
+
+# Registering itself with servicemanager at startup (AServiceManager_addService in
+# vps/service/service_main.cpp).
+binder_call(vendor_kpit_vps_default, servicemanager)
+
+# AllianceCarHvacService/AllianceCarBaseService run under system_app (see service.te's own note on
+# why -- sharedUserId="android.uid.system" maps to system_app, not platform_app) -- make system_app
+# a client of hal_vps so its Binder calls into vendor.kpit.vps-service aren't denied.
+hal_client_domain(system_app, hal_vps)

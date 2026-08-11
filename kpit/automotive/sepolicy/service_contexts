@@ -1,2 +1,7 @@
 hvac_service                               u:object_r:hvac_service:s0
 bluetooth_service                          u:object_r:bluetooth_service:s0
+
+# VHAL-alignment Stage 4 (kpit/docs/03-implementation-status.md item 13) -- registered by
+# vps/service/service_main.cpp as IVpsService::descriptor + "/default", the standard AIDL instance
+# naming convention (see e.g. android.hardware.automotive.vehicle.IVehicle/default's own entry).
+vendor.kpit.vps.IVpsService/default        u:object_r:vps_service:s0
