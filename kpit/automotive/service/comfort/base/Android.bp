@@ -53,10 +53,13 @@ java_library {
 }
 
 // -----------------------------------------------------------------------------------------------
-// JNI bridge shared by every Comfort domain service. Calls straight into vps::VpsDispatcher
-// (libvps.so, Component 3 -- see vendor/kpit/automotive/vps/) in-process, behind the blocking
-// get/set/subscribe surface AllianceCarBaseService calls into from its ExecutorService worker
-// threads. See instruction.md section II steps 5-6 and IV.6-adjacent build note on VpsDispatcher.
+// JNI bridge shared by every Comfort domain service, behind the blocking get/set/subscribe surface
+// AllianceCarBaseService calls into from its ExecutorService worker threads. VHAL-alignment Stage 4
+// (kpit/docs/03-implementation-status.md item 13): this used to link libvps directly and call
+// vps::VpsDispatcher in-process; it's now a Binder client of vendor.kpit.vps-service
+// (vendor/kpit/automotive/vps/service/) over the vendor.kpit.vps AIDL interface
+// (vendor/kpit/automotive/vps/aidl/) instead -- see instruction.md section II steps 5-6 for the
+// original in-process design this superseded.
 // -----------------------------------------------------------------------------------------------
 cc_library_shared {
     name: "libbase_comfort_jni",
@@ -64,7 +67,8 @@ cc_library_shared {
     header_libs: ["jni_headers"],
     shared_libs: [
         "liblog",
-        "libvps",
+        "libbinder_ndk",
+        "vendor.kpit.vps-ndk",
     ],
     cflags: [
         "-Wall",
