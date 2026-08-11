@@ -43,9 +43,14 @@ roman numeral in the table above, not a page number.
   functional test (XII) not yet run (no peer device used in this pass); Step 2's full per-control
   HVAC matrix not yet walked row by row.
 - **Sepolicy:** `vendor/kpit/automotive/sepolicy/` exists again as of 2026-08-03, for
-  `service_manager` types only (not `/vendor` file access — that's permanently off the table for
-  these coredomain services). Full story in
-  [docs/10-build-and-product-integration.md](docs/10-build-and-product-integration.md).
+  `service_manager` types only (not `/vendor` *file* access — that's permanently off the table for
+  coredomain services like `hvac-service`). Full story in
+  [docs/10-build-and-product-integration.md](docs/10-build-and-product-integration.md). Update
+  (2026-08-11): `sepolicy/` also now declares `hal_vps.te`, a real vendor HAL domain for
+  VHAL-alignment Stage 4's `vendor.kpit.vps-service` daemon — see
+  [docs/03-implementation-status.md](docs/03-implementation-status.md) item 13. This doesn't
+  contradict the file-access rule above: `hvac-service` still never touches a `/vendor` file
+  directly, it reaches the new daemon over Binder.
 - **Boot-start fix (2026-08-03, confirmed):** first real functional-test attempt (XI Step 1) failed
   — `hvac_service` was never registered, because `persistent="true"` only starts the app's process,
   not the `<service>` inside it. Fixed with `HvacApplication`/`IviBluetoothApplication`

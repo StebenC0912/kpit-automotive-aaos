@@ -22,7 +22,10 @@ Three decoupled components, two domains (**Comfort**, **Connectivity**):
      (AVRCP) directly.
 3. **VPS (Vehicle Platform Service)** — `vps/` — C++ `libvps.so`. A polymorphic `IVpsHandler`
    interface with a `VpsDispatcher` that routes by property ID to domain handlers
-   (`HvacHandler`, future `SeatHandler`).
+   (`HvacHandler`, future `SeatHandler`). Runs inside `vendor.kpit.vps-service` (`vps/service/`,
+   `/vendor`), reached from each domain's JNI bridge over the `vendor.kpit.vps` AIDL interface
+   (`vps/aidl/`) — a real Binder HAL boundary, not an in-process call (VHAL-alignment Stage 4,
+   `kpit/docs/03-implementation-status.md` item 13).
 
 ## Status
 
@@ -44,8 +47,8 @@ Three decoupled components, two domains (**Comfort**, **Connectivity**):
 Both domains share the same shape: **HMI → ViewModel → Manager → Service**, diverging only at the
 Service:
 
-- **Comfort (HVAC/Seat):** Service → JNI → `VpsDispatcher` → domain handler → (simulated) vehicle
-  property store.
+- **Comfort (HVAC/Seat):** Service → JNI → Binder → `vendor.kpit.vps-service` → `VpsDispatcher` →
+  domain handler → (simulated) vehicle property store.
 - **Connectivity (Bluetooth/WiFi):** Service calls the relevant Android framework API directly
   (e.g. `BluetoothHeadsetClient`/`BluetoothA2dpSink`, `MediaSessionManager`) — no JNI, no VPS.
 
@@ -60,9 +63,9 @@ vendor/kpit/automotive/
 ├── service/
 │    ├── comfort/        base, hvac, seat
 │    └── connectivity/   base, bluetooth
-├── vps/                 libvps.so (C++)
+├── vps/                 libvps.so (C++) + vendor.kpit.vps-service (aidl/, service/) HAL daemon
 ├── products/            kpit_apps.mk product packaging
-└── sepolicy/            service_manager types for hvac_service/bluetooth_service
+└── sepolicy/            service_manager types for hvac_service/bluetooth_service, hal_vps.te
 ```
 
 Branch history mirrors this layout — `hmi`, `vps`, and `service` were each built as their own
