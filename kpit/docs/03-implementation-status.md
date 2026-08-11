@@ -121,14 +121,56 @@
       yet done: an actual Soong-built `libvps_test` run via `atest`/`device-tests` on a real
       device/emulator, and a `RealCanHvacBackend` itself (Stage 3 only built the seam, not a real
       implementation to plug into it — there's no real CAN/ECU integration in this project).
-    - **Stage 4 — real Binder HAL boundary.** Move `VpsDispatcher` out of in-process `libvps.so`
-      into its own AIDL service/process, registered with `servicemanager`, with
-      `base_comfort_vhal_jni.cpp` becoming a Binder client instead of a same-process call bridge —
-      this is the previously-rejected "real `IVehicle` HAL binary" alternative from
-      06-technical-requirements.md #7. Not started; recommended, if ever pursued, to consume AOSP's
-      real prebuilt `android.hardware.automotive.vehicle` AIDL library rather than hand-writing a
-      custom interface, which would replace Stage 2's hand-rolled `VpsPropertyId.h` with the real
-      `VehiclePropertyIds` constants for free.
+    - **Stage 4 — real Binder HAL boundary. ✅ Implemented 2026-08-11, not build/boot verified.**
+      `VpsDispatcher`/`HvacHandler` moved out of in-process `libvps.so` into their own daemon,
+      `vendor.kpit.vps-service` (new `vps/service/`), registered with `servicemanager` as
+      `vendor.kpit.vps.IVpsService/default`; `base_comfort_vhal_jni.cpp` is now a Binder client of
+      it instead of a same-process call bridge — the previously-rejected "real `IVehicle` HAL
+      binary" alternative from 06-technical-requirements.md #7, taken after all. New
+      `vps/aidl/vendor/kpit/vps/{IVpsService,IVpsCallback}.aidl` (new `aidl_interface` module
+      `vendor.kpit.vps`, `stability: "vintf"` — required for a coredomain process to call a
+      vendor-partition service at all) mirror `VpsDispatcher`'s existing get/set/subscribe/
+      unsubscribe methods 1:1; `IVpsCallback.onPropertyEvent(propId, areaId)` replaces the
+      in-process `VpsEventCallback` lambda for the property-change push direction. Deliberately
+      **not** the route of consuming AOSP's real prebuilt `android.hardware.automotive.vehicle`
+      AIDL library floated when Stage 4 was first sketched — that's a separate, much larger real
+      VHAL implementation already present in this tree (`hardware/interfaces/automotive/vehicle/`,
+      backing the car emulator's own VHAL), unrelated to this vendor demo stack; a small
+      hand-written interface mirroring `VpsDispatcher`'s own shape stayed in scope instead. `vps/`'s
+      C++ core (`VpsDispatcher`, `HvacHandler`, `IHvacBackend`/`FakeHvacBackend`, `VpsPropConfig`,
+      `VpsPropertyId`, all their tests) is completely untouched by this — `vendor.kpit.vps-service`
+      is a thin `BnVpsService` wrapper (new `vps/service/VpsServiceImpl.{h,cpp}`) around the exact
+      same `VpsDispatcher::instance()` singleton and `ensureHandlersRegistered()` call that used to
+      live in the JNI file. `libvps` (`vps/Android.bp`) gained `vendor: true` — the payoff
+      10-build-and-product-integration.md's sepolicy section called out as the only way back to
+      `/vendor` for it — since it's now only linked into `vendor.kpit.vps-service`, not
+      `hvac-service`; `libvps_test` followed it to stay link-compatible. `libbase_comfort_jni`
+      dropped its `libvps` dependency in favor of `vendor.kpit.vps-ndk` + `libbinder_ndk`.
+      Sepolicy: new `kpit/automotive/sepolicy/hal_vps.te`, modeled 1:1 on the real AOSP
+      `hal_vehicle`/`hal_vehicle_default` pair (`system/sepolicy/public/hal_vehicle.te` +
+      `system/sepolicy/vendor/hal_vehicle_default.te`) — `hal_attribute(vps)` +
+      `hal_attribute_service(hal_vps, vps_service)`, a `vendor_kpit_vps_default` domain via
+      `init_daemon_domain`/`hal_server_domain`, and `hal_client_domain(system_app, hal_vps)` so
+      `AllianceCarBaseService`'s `system_app` domain can call it; `service_contexts` gained
+      `vendor.kpit.vps.IVpsService/default`. Product packaging (`kpit_apps.mk`): `PRODUCT_PACKAGES`
+      swapped the explicit `libvps` entry for `vendor.kpit.vps-service` (libvps is now a transitive
+      dependency, same as any other vendor HAL's supporting libs); dropped the now-stale
+      `system/lib{,64}/libvps.so` lines from `PRODUCT_ARTIFACT_PATH_REQUIREMENT_ALLOWED_LIST`.
+      **Scope decisions:** stayed single-subscriber (`HvacHandler` only ever held one
+      `VpsEventCallback` total even before this, so `VpsServiceImpl` keeps exactly one active
+      `IVpsCallback` too — `hvac-service` is still the only client, Seat is unimplemented);
+      multi-client callback fan-out is real future work, not built speculatively. A dead client's
+      callback binder is dropped from `VpsServiceImpl`'s own bookkeeping via
+      `AIBinder_DeathRecipient` but not proactively unsubscribed inside `HvacHandler` — its next
+      call just fails silently (no crash) until a fresh `subscribe()` replaces it. **Verified:**
+      nothing — unlike Stages 1-3, there's no standalone-compilable subset here (the AIDL-generated
+      C++ headers `vps/service/*.cpp` and the JNI file depend on don't exist without running the
+      `aidl` compiler through Soong, which this sandbox doesn't have). Every new `.aidl`/`.te`/
+      `.rc`/`.xml`/`Android.bp` file was hand-checked against the real AOSP files named above, and
+      `grep`ped for leftover `vps::VpsDispatcher::instance()` call sites outside `vps/service/`
+      (zero found) — that's the full verification ceiling this session reached. Not yet done: any
+      real Soong build, sepolicy `checkpolicy`/neverallow check, VINTF compatibility check, or
+      on-device/emulator boot test of any of it.
 14. **Real-VHAL-id cross-reference in logs/`dump()`, and keeping it out of the
     Manager↔Service dependency graph (2026-08-10).** A `Map<Integer, Integer>`
     (`REAL_VHAL_PROPERTY_IDS`) mapping each of this stub's `HvacProperties` propIds to the
@@ -366,3 +408,28 @@ picking the work back up.
    session.
 5. `vspManagerTool` (item 5 above) — planned, not implemented; the on-device `dump()` half it
    depends on is done.
+
+### Session state as of 2026-08-11
+Closes item 2 from the checkpoint above: **VHAL-alignment Stage 4 — real Binder HAL boundary —
+implemented** (full writeup under item 13's Stage 4 entry above). `vps::VpsDispatcher`/`HvacHandler`
+now run inside a new vendor daemon, `vendor.kpit.vps-service` (`vps/service/`), reached over a new
+`vendor.kpit.vps` AIDL interface (`vps/aidl/`) instead of being linked in-process into
+`hvac-service`; `libvps` is `vendor: true` again. `vps/`'s C++ core and its tests are byte-for-byte
+untouched — Stage 4 only added new files (`vps/aidl/`, `vps/service/`) and rewrote
+`base_comfort_vhal_jni.cpp` to be a Binder client plus the matching `Android.bp`/sepolicy/product
+config. **Verification ceiling reached this session: none of it runs.** Unlike Stages 1-3, this
+touches AIDL codegen (`vps/service/*.cpp` `#include`s headers the `aidl` compiler generates, not
+present without a real Soong build), sepolicy (`hal_vps.te` was never run through `checkpolicy`),
+and VINTF manifest assembly (`vps-service.xml` was never checked for compatibility) — none of which
+can be exercised standalone the way Stage 1-3's pure-C++ code was g++/gtest-verified. Every new file
+was instead hand-checked against real AOSP references (`hardware/interfaces/automotive/can/aidl/
+default/`'s `service.cpp`/`Android.bp` for the daemon shape, `system/sepolicy/public/hal_vehicle.te`
++ `system/sepolicy/vendor/hal_vehicle_default.te` for the sepolicy macros, `hardware/interfaces/
+automotive/vehicle/aidl/impl/vhal/vhal-default-service.xml` for the manifest fragment shape) —
+identified via `find`/`grep` over this tree's full AOSP source, not from memory. **Not done:** any
+real Soong/AOSP build, `checkpolicy`/neverallow verification, VINTF compatibility check, or
+on-device/emulator boot test of anything in this session (same "not done" item 1 from the prior
+checkpoint, now also covering everything Stage 4 added); multi-client `IVpsCallback` fan-out (Stage
+4 stayed single-subscriber, matching `HvacHandler`'s pre-existing single-callback field — real work
+if/when Seat needs simultaneous VPS access); a `RealCanHvacBackend` (independent of Stage 4, still
+just the Stage 3 seam with nothing plugged into it).

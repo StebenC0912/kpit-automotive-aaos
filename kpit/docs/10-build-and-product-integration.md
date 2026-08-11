@@ -170,6 +170,14 @@ for the HAL's own domain) — only worth it if there's a concrete reason to keep
 Not needed for this tree today; `libvps`/`libbase_comfort_jni` have no such requirement, so they stay
 on `/system` per the "reverted" note above.
 
+**Update (2026-08-11):** this row of the table was taken after all, as VHAL-alignment Stage 4
+(`kpit/docs/03-implementation-status.md` item 13) — not because `libvps` gained a concrete
+`/vendor`-only requirement, but to close the gap with real VHAL structure. `libbase_comfort_jni`
+stays on `/system` exactly as concluded above (it's still the coredomain caller); `libvps` moved
+to a new `vendor: true` daemon, `vendor.kpit.vps-service`, with `base_comfort_vhal_jni.cpp` now the
+Binder client this section describes. Not build/boot verified this session — see item 13's Stage 4
+writeup for the verification ceiling reached.
+
 ### Boot lesson — `pack_emulator.sh` packaged plain `system.img` instead of `system-qemu.img`, causing a boot loop (2026-08-01)
 Symptom: guest boots the kernel, then `init` prints
 `partition(s) not found in /sys, waiting for their uevent(s): super, vbmeta`, times out after ~10s,

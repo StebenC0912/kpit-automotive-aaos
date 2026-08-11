@@ -57,10 +57,17 @@ vendor/kpit/automotive/
 │         └── wifi/                           ❌ not created (directory doesn't exist on disk)
 │
 └── vps/                                      HVAC portion ✅ done
-      ├── Android.bp                          cc_library_shared "libvps" + cc_test "libvps_test", installs to /system (see 10-build-and-product-integration.md)
+      ├── Android.bp                          cc_library_shared "libvps" (vendor: true) + cc_test "libvps_test", see 10-build-and-product-integration.md
       ├── include/ (IVpsHandler, VpsDispatcher, HvacHandler, IHvacBackend, FakeHvacBackend,
       │             VpsPropConfig, VpsPropertyId)              [SeatHandler.h ❌ not created]
       ├── src/ (VpsDispatcher.cpp, HvacHandler.cpp, FakeHvacBackend.cpp, VpsPropConfig.cpp)
       │                                                        [SeatHandler.cpp ❌ not created]
-      └── tests/ (HvacHandlerTest.cpp, VpsDispatcherTest.cpp)  libvps_test, see 03-implementation-status.md #13
+      ├── tests/ (HvacHandlerTest.cpp, VpsDispatcherTest.cpp)  libvps_test, see 03-implementation-status.md #13
+      ├── aidl/vendor/kpit/vps/ (IVpsService.aidl, IVpsCallback.aidl)  aidl_interface "vendor.kpit.vps",
+      │                                                        Stage 4, see 03-implementation-status.md #13
+      └── service/                             cc_binary "vendor.kpit.vps-service" (vendor: true) — hosts
+           (VpsServiceImpl.{h,cpp}, service_main.cpp,           VpsDispatcher/HvacHandler behind the AIDL
+            vps-service.rc, vps-service.xml,                    interface above; base_comfort_vhal_jni.cpp
+            Android.bp)                                         is its Binder client. Stage 4, not build/
+                                                                  boot verified — see 03-implementation-status.md #13
 ```

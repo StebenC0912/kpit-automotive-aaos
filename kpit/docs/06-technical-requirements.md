@@ -43,6 +43,13 @@
      unverifiable and fragile assumption from this vendor tree. Revisited (and still not taken, for a
      different reason) in [10-build-and-product-integration.md](10-build-and-product-integration.md)'s
      sepolicy notes, when weighing whether to keep `vendor: true` on `libvps`/`libbase_comfort_jni`.
+   - **Update (2026-08-11):** the narrower half of this — a real *Binder HAL boundary*, not literally
+     matching AOSP's real `IVehicle` interface — was taken as VHAL-alignment Stage 4
+     ([03-implementation-status.md](03-implementation-status.md) item 13). `base_comfort_vhal_jni.cpp`
+     now calls a small hand-written `vendor.kpit.vps` AIDL interface (`vps/aidl/`) implemented by a new
+     `vendor.kpit.vps-service` daemon (`vps/service/`), not the real `android.hardware.automotive.vehicle`
+     interface — the "unverifiable and fragile" concern above was about matching *that* real interface
+     exactly, which this still doesn't attempt.
    - `VpsDispatcher` is a process-wide singleton, one per `AllianceCarBaseService` process. It owns no
      domain knowledge — just routes by `propId` to whichever registered `IVpsHandler` claims it.
      Handlers register once per process (`std::call_once` in `nativeInit()`); a process registering an
