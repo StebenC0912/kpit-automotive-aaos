@@ -18,12 +18,12 @@ that fix before Step 1 below will work — if you still hit "does not exist" aft
 by hand before running Step 1 below:
 ```bash
 adb root
-adb shell am start-service com.kpit.hvac/com.kpit.hvac.service.HvacService
+adb shell am start-service com.kpit.hvac/com.kpit.hvac.service.AllianceCarHvacService
 ```
 
 **Second bug found right after #16 — app never receives events at all (#17):** even with the
 service running, injecting a property returned success but the app's panel never reacted.
-`HvacManager` never connected to the service (and so never sent the remote `registerCallback()`)
+`AllianceCarHvacManager` never connected to the service (and so never sent the remote `registerCallback()`)
 until some outbound `setX()` call happened — but `toggleAc()` is itself gated on state that can
 only arrive via that same callback, so nothing could ever break the cycle. Fixed by making listener
 registration force the connection; see 06-technical-requirements.md #17. **Launch `hvac_app` before
@@ -39,13 +39,14 @@ matrix below is still to be walked through row by row.
 `HvacViewModel` starts `mCurrentVehicleState = -1` and only enables the AC button — and, once AC is
 toggled on, the rest of the panel — once `mCurrentVehicleState >= 5`
 (`hmi/hvac_app/src/com/kpit/hmi/hvac/viewmodel/HvacViewModel.java:27,55,102-133`). That value only
-moves via a `PROP_VEHICLE_STATE` event, and `HvacHandler::seedDefaults()` seeds it to `0.0f` with
-nothing in the file ever touching it again (`vps/src/HvacHandler.cpp:63`) — there's no simulated
-ignition/ECU signal in this stub. Not an app bug; just means the panel needs one manual nudge per
-boot before it's testable (Step 1 below).
+moves via a `PROP_VEHICLE_STATE` event, and `FakeHvacBackend::seedDefaults()` (Stage 3; was
+`HvacHandler::seedDefaults()` before the backend split) seeds it to `0.0f` with nothing in the file
+ever touching it again (`vps/src/FakeHvacBackend.cpp:48`) — there's no simulated ignition/ECU
+signal in this stub. Not an app bug; just means the panel needs one manual nudge per boot before
+it's testable (Step 1 below).
 
-### Fixed — `HvacManager.onChangeEvent` only dispatched 4 of the 12 property IDs (found 2026-08-02, fixed 2026-08-02)
-`service/comfort/hvac/src/com/kpit/hvac/manager/HvacManager.java`'s binder callback originally
+### Fixed — `AllianceCarHvacManager.onChangeEvent` only dispatched 4 of the 12 property IDs (found 2026-08-02, fixed 2026-08-02)
+`service/comfort/hvac/src/com/kpit/hvac/manager/AllianceCarHvacManager.java`'s binder callback originally
 routed only `PROP_AC_STATE`/`PROP_FAN_SPEED` (to `dispatchToProperty`) and
 `PROP_VEHICLE_STATE`/`PROP_TEMP_OUTSIDE` (to `dispatchToSystem`) — every other property id
 (`PROP_MAX_STATE`, `PROP_RECYCLE_STATE`, `PROP_TEMP`, `PROP_SYNC`, `PROP_SEAT_HEATING`,
@@ -62,7 +63,7 @@ pass `event.getAreaId()` straight through as the `area` parameter, since `HvacPr
 `onHeatingSeatChanged` expect — no translation needed.
 
 **Second bug found in the same method while fixing this:** the pre-existing `PROP_AC_STATE` case
-read `hvacListener.onACStateChanged(event.getValue() == 0)` — inverted. `HvacManager.setAcState()`
+read `hvacListener.onACStateChanged(event.getValue() == 0)` — inverted. `AllianceCarHvacManager.setAcState()`
 sends `1.0f` for on/`0.0f` for off, so the echoed confirmation event was reporting AC as *off*
 whenever it was actually turned on (and vice versa) — every AC tap would optimistically show "on",
 then immediately flip back to "off" the instant the confirmation event arrived. Fixed to
@@ -120,62 +121,67 @@ still gated by the panel lock), invoked from both the fan-speed observer and
 enablement rules don't fight over the same views.
 
 ### Fixed — Temp Up appears to do nothing while Temp Down works (found 2026-08-03, fixed 2026-08-03)
-A regression of the residual issue flagged in the "`HvacManager.onChangeEvent` only dispatched 4 of
+A regression of the residual issue flagged in the "`AllianceCarHvacManager.onChangeEvent` only dispatched 4 of
 the 12 property IDs" section above: `HvacListener.onTempChanged(int value, int area)` took an `int`,
-so `HvacManager`'s dispatcher truncated the echoed float toward zero (`(int) event.getValue()`)
+so `AllianceCarHvacManager`'s dispatcher truncated the echoed float toward zero (`(int) event.getValue()`)
 before it ever reached the ViewModel. `incrementTemp`/`decreaseTemp` step in 0.5°C, so every
 increment lands on `X.5`; truncating `X.5` toward zero always rounds the *confirmed* value back down
 to `X`, silently cancelling the +0.5 the instant the echo arrived, while decrements (landing on
 `X.5`, then truncating to a lower whole number each time) always showed a net decrease. Net effect:
 Temp Down looked correct every time, Temp Up looked like it did nothing. Fixed by changing
-`onTempChanged` to take a `float` end-to-end — `HvacListener`'s interface, `HvacManager`'s dispatch
-site (`service/comfort/hvac/src/com/kpit/hvac/manager/HvacManager.java`), and `HvacViewModel`'s
+`onTempChanged` to take a `float` end-to-end — `HvacListener`'s interface, `AllianceCarHvacManager`'s dispatch
+site (`service/comfort/hvac/src/com/kpit/hvac/manager/AllianceCarHvacManager.java`), and `HvacViewModel`'s
 implementation — so the real 0.5° value survives the round trip instead of being cast to `int` along
 the way.
 
 ### Added — debug logging across the full HVAC stack (2026-08-03)
 Added `Log.d`/`ALOGD` tracing end-to-end for easier future debugging, covering: every HMI button
 click and every `toggle*`/`increment*`/`decrement*` call in `HvacActivity`/`HvacViewModel` (with the
-gating decision and outgoing command), every listener callback received from `HvacManager`,
+gating decision and outgoing command), every listener callback received from `AllianceCarHvacManager`,
 `checkInterlockingAndEvaluate()`'s decision, and every `render*Ui`/`setPanelInteractivity` call;
-`HvacManager`'s listener register/unregister, every outbound `setProperty`, every inbound
-`onChangeEvent`, and dispatch fan-out counts; `HvacService`'s `setVehicleProperty`/native-set result,
+`AllianceCarHvacManager`'s listener register/unregister, every outbound `setProperty`, every inbound
+`onChangeEvent`, and dispatch fan-out counts; `AllianceCarHvacService`'s `setVehicleProperty`/native-set result,
 callback register/unregister, per-property subscribe results, and `onVehiclePropertyChanged`
 broadcasts; and the native VHAL path (`base_comfort_vhal_jni.cpp`, `VpsDispatcher.cpp`,
 `HvacHandler.cpp`) — JNI init/release/subscribe, every native get/set call, dispatcher routing, and
 the simulated ECU's store writes/notify/outside-temp drift loop. Not a bug fix — added specifically
 to make the three bugs above (and future ones) easier to diagnose from `adb logcat`. Filter with
-`adb logcat -s HvacActivity:* HvacViewModel:* HvacManager:* HvacService:* BaseComfortVhalJni:*
+`adb logcat -s HvacActivity:* HvacViewModel:* AllianceCarHvacManager:* AllianceCarHvacService:* BaseComfortVhalJni:*
 VpsDispatcher:* HvacHandler:*`.
 
-### Clarification — what `adb shell service call hvac_service` actually round-trips through (2026-08-05)
+### Clarification — what `adb shell service call hvac_service` actually round-trips through (2026-08-05, updated 2026-08-10 for Stage 3's backend split — see 03-implementation-status.md #13)
 Easy to misread as "injecting an event directly into VPS." It isn't — adb never talks to VPS at
-all. The round trip is **service (in) → VPS (write + notify) → service (out) → app**:
+all. The round trip is **service (in) → VPS (validate, delegate to backend) → backend (write +
+fire change callback) → VPS (subscription check) → service (out) → app**:
 
 ```
-adb service call → HvacService.setVehicleProperty()          [Binder, enters the service]
+adb service call → AllianceCarHvacService.setVehicleProperty()          [Binder, enters the service]
                   → JNI → VpsDispatcher::setFloatProperty()
-                  → HvacHandler::setProperty()                 [writes mStore, then notify()]
-                  → (bound JNI callback) HvacService.onVehiclePropertyChanged()
+                  → HvacHandler::setProperty()                 [validates config, delegates to backend]
+                  → FakeHvacBackend::setValue()                [writes mStore, fires change callback]
+                  → HvacHandler::onBackendValueChanged()        [subscription check, then forwards]
+                  → (bound JNI callback) AllianceCarHvacService.onVehiclePropertyChanged()
                   → broadcastToListeners → IHVACVehicleCallback.onChangeEvent()  [back out to the app]
 ```
 
-`HvacService.setVehicleProperty()` (`service/comfort/hvac/src/com/kpit/hvac/service/HvacService.java:41-53`)
+`AllianceCarHvacService.setVehicleProperty()` (`service/comfort/hvac/src/com/kpit/hvac/service/AllianceCarHvacService.java:94-108`)
 itself has no code that calls `onChangeEvent`/`broadcastToListeners` — it only forwards the value
-into VPS and returns. The event only fires because `HvacHandler::setProperty()`
-(`vps/src/HvacHandler.cpp:90-100`) unconditionally calls `notify()` on every write, which is the
-same callback the boot-time `subscribeToVehicleProperties()` wired up — so adb's write and a real
-HMI-driven write are indistinguishable once they reach VPS, and both come back out through the
-service, never directly from VPS to the app.
+into VPS and returns. The event only fires because `FakeHvacBackend::setValue()`
+(`vps/src/FakeHvacBackend.cpp:69-77`, Stage 3) unconditionally fires its change callback on every
+write, which `HvacHandler::onBackendValueChanged()` only forwards on if something is actually
+subscribed to that exact `(propId, areaId)` — the same callback path the boot-time
+`subscribeToVehicleProperties()` wired up — so adb's write and a real HMI-driven write are
+indistinguishable once they reach VPS, and both come back out through the service, never directly
+from VPS to the app.
 
 This echo-on-write pattern is not a stub/mock shortcut — `HvacHandler.h`'s class comment says it
 mirrors real VHAL/ECU behavior deliberately: a command's `setProperty` call doesn't synchronously
 return "it worked," the caller only learns a command took effect by observing the property change
 event, same as it would for a change it didn't originate (e.g. `PROP_TEMP_OUTSIDE`'s
-`simulationLoop()` drift, `HvacHandler.cpp:140-156`, which writes `mStore` and calls `notify()`
-directly with no `setProperty()`/Binder call at all). What's stubbed here is the "hardware" behind
-the store (an in-memory map instead of a real CAN bus/ECU, and an instant echo instead of real
-transport latency) — not the echo-via-event design itself.
+`simulationLoop()` drift, `FakeHvacBackend.cpp:98-114`, Stage 3, which writes `mStore` and fires
+the change callback directly with no `setProperty()`/Binder call at all). What's stubbed here is
+the "hardware" behind the store (an in-memory map instead of a real CAN bus/ECU, and an instant
+echo instead of real transport latency) — not the echo-via-event design itself.
 
 Contrast with a real vehicle-signal simulation tool (e.g. a VSP-style raw signal injector like
 `vps: 11 00 11 01`): that class of tool writes directly into the VHAL's property cache and fires
@@ -192,7 +198,7 @@ app's command API. Not built as of this note; flagged here in case it's needed l
 
 ### Step 1 — unlock the panel
 ```bash
-adb shell service call hvac_service 1 i32 11 i32 0 f 5.0
+adb shell service call hvac_service 1 i32 289406987 i32 0 f 5.0
 ```
 Transaction `1` = `setVehicleProperty` (first method in `IHVACVehicleService.aidl`), `11` =
 `PROP_VEHICLE_STATE`, `0` = `AREA_GLOBAL`, `5.0` = value. This hits the exact same AIDL entry point
@@ -201,28 +207,28 @@ a real VHAL push would use — not a mock/bypass. Then tap **AC** once in the ru
 
 ### Step 2 — per-control matrix
 For each row: tap the control in the UI and watch for the expected visual change, then check
-`adb logcat -s HvacViewModel:* HvacManager:* HvacService:* HvacHandler:*` for the call chain. The
+`adb logcat -s HvacViewModel:* AllianceCarHvacManager:* AllianceCarHvacService:* HvacHandler:*` for the call chain. The
 "inject" command simulates the *event* path (as if the signal came from the vehicle instead of the
 HMI) via the same `setVehicleProperty` hook as Step 1 — useful to test each property independently
 of whatever the ViewModel's optimistic UI update is doing.
 
 | Control          | ViewModel method                             | Prop id / area                    | Confirmed round trip?                                                                                      | Inject (event-path test)                               |
 |------------------|----------------------------------------------|-----------------------------------|------------------------------------------------------------------------------------------------------------|--------------------------------------------------------|
-| AC               | `toggleAc()`                                 | 1 / `GLOBAL`(0)                   | ✅ (polarity fixed above — verify it no longer flips back off right after turning on)                      | `service call hvac_service 1 i32 1 i32 0 f 1.0`       |
-| Fan +/−          | `increaseFanSpeed()` / `decrementFanSpeed()` | 4 / `GLOBAL`(0)                   | ✅ (no optimistic update at all — bars move only via the echoed event)                                     | `service call hvac_service 1 i32 4 i32 0 f 7.0`       |
-| Vehicle state    | n/a (system signal)                          | 11 / `GLOBAL`(0)                  | ✅                                                                                                         | `f 3.0` (drops below 5, re-locks AC) / `f 5.0`        |
-| Outside temp     | n/a (system signal)                          | 12 / `GLOBAL`(0)                  | ✅ but logcat-only — `onTempOutsideChanged` only `Log.d()`s, no `LiveData`/UI                              | `f 30.0`                                              |
-| Max              | `toggleMax()`                                | 2 / `GLOBAL`(0)                   | ✅ now dispatched — verify the command also carries `mIsMaxOn` after the Max/Sync fix below, not `mIsAcOn` | `service call hvac_service 1 i32 2 i32 0 f 1.0`       |
-| Recycle          | `toggleRecycle()`                            | 3 / `GLOBAL`(0)                   | ✅ now dispatched                                                                                          | `... i32 3 i32 0 f 1.0`                               |
-| Temp left/right  | `incrementTemp(area)` / `decreaseTemp(area)` | 5 / `DRIVER`(1) or `PASSENGER`(2) | ✅ now dispatched, but confirmed value is truncated to whole degrees (residual note above)                 | `... i32 5 i32 1 f 24.0`                              |
-| Sync             | `toggleSync()`                               | 6 / `GLOBAL`(0)                   | ✅ now dispatched — verify toggle direction after the Max/Sync fix below                                   | `... i32 6 i32 0 f 1.0`                               |
-| Seat heating L/R | `toggleSeatHeating(area)`                    | 7 / `DRIVER`(1) or `PASSENGER`(2) | ✅ now dispatched                                                                                          | `... i32 7 i32 2 f 1.0`                               |
-| Ventilation mode | `toggleVentilationMode(mode)`                | 8 / `GLOBAL`(0)                   | ✅ now dispatched                                                                                          | `... i32 8 i32 0 f 2.0` (1=foot, 2=foot+face, 3=face) |
-| Auto             | `toggleAuto()`                               | 9 / `GLOBAL`(0)                   | ✅ now dispatched                                                                                          | `... i32 9 i32 0 f 1.0`                               |
-| Defrost          | `toggleDefrost()`                            | 10 / `GLOBAL`(0)                  | ✅ now dispatched                                                                                          | `... i32 10 i32 0 f 1.0`                              |
+| AC               | `toggleAc()`                                 | 0x11200001 / `GLOBAL`(0)                   | ✅ (polarity fixed above — verify it no longer flips back off right after turning on)                      | `service call hvac_service 1 i32 287309825 i32 0 f 1.0`       |
+| Fan +/−          | `increaseFanSpeed()` / `decrementFanSpeed()` | 0x11400004 / `GLOBAL`(0)                   | ✅ (no optimistic update at all — bars move only via the echoed event)                                     | `service call hvac_service 1 i32 289406980 i32 0 f 7.0`       |
+| Vehicle state    | n/a (system signal)                          | 0x1140000B / `GLOBAL`(0)                  | ✅                                                                                                         | `f 3.0` (drops below 5, re-locks AC) / `f 5.0`        |
+| Outside temp     | n/a (system signal)                          | 0x1160000C / `GLOBAL`(0)                  | ✅ but logcat-only — `onTempOutsideChanged` only `Log.d()`s, no `LiveData`/UI                              | `f 30.0`                                              |
+| Max              | `toggleMax()`                                | 0x11200002 / `GLOBAL`(0)                   | ✅ now dispatched — verify the command also carries `mIsMaxOn` after the Max/Sync fix below, not `mIsAcOn` | `service call hvac_service 1 i32 287309826 i32 0 f 1.0`       |
+| Recycle          | `toggleRecycle()`                            | 0x11200003 / `GLOBAL`(0)                   | ✅ now dispatched                                                                                          | `... i32 287309827 i32 0 f 1.0`                               |
+| Temp left/right  | `incrementTemp(area)` / `decreaseTemp(area)` | 0x15600005 / `DRIVER`(1) or `PASSENGER`(2) | ✅ now dispatched, but confirmed value is truncated to whole degrees (residual note above)                 | `... i32 358612997 i32 1 f 24.0`                              |
+| Sync             | `toggleSync()`                               | 0x11200006 / `GLOBAL`(0)                   | ✅ now dispatched — verify toggle direction after the Max/Sync fix below                                   | `... i32 287309830 i32 0 f 1.0`                               |
+| Seat heating L/R | `toggleSeatHeating(area)`                    | 0x15200007 / `DRIVER`(1) or `PASSENGER`(2) | ✅ now dispatched                                                                                          | `... i32 354418695 i32 2 f 1.0`                               |
+| Ventilation mode | `toggleVentilationMode(mode)`                | 0x11400008 / `GLOBAL`(0)                   | ✅ now dispatched                                                                                          | `... i32 289406984 i32 0 f 2.0` (1=foot, 2=foot+face, 3=face) |
+| Auto             | `toggleAuto()`                               | 0x11200009 / `GLOBAL`(0)                   | ✅ now dispatched                                                                                          | `... i32 287309833 i32 0 f 1.0`                               |
+| Defrost          | `toggleDefrost()`                            | 0x1120000A / `GLOBAL`(0)                  | ✅ now dispatched                                                                                          | `... i32 287309834 i32 0 f 1.0`                              |
 
 All 12 rows are now expected to round-trip; none should still land on
-`HvacManager: onChangeEvent: not handle this property` in logcat. If any row still hits that log
+`AllianceCarHvacManager: onChangeEvent: not handle this property` in logcat. If any row still hits that log
 line, the dispatcher fix above didn't take (re-check the build), not a re-emergence of the original
 gap.
 
@@ -235,55 +241,55 @@ the UI stays locked and won't visibly react.
 
 ```powershell
 # --- Vehicle state (unlock the panel — do this first) ---
-adb shell service call hvac_service 1 i32 11 i32 0 f 5.0   # PROP_VEHICLE_STATE = 5 (enables AC)
-adb shell service call hvac_service 1 i32 11 i32 0 f 3.0   # PROP_VEHICLE_STATE = 3 (below 5, re-locks AC)
-adb shell service call hvac_service 1 i32 11 i32 0 f 0.0   # PROP_VEHICLE_STATE = 0 (default on boot)
+adb shell service call hvac_service 1 i32 289406987 i32 0 f 5.0   # PROP_VEHICLE_STATE = 5 (enables AC)
+adb shell service call hvac_service 1 i32 289406987 i32 0 f 3.0   # PROP_VEHICLE_STATE = 3 (below 5, re-locks AC)
+adb shell service call hvac_service 1 i32 289406987 i32 0 f 0.0   # PROP_VEHICLE_STATE = 0 (default on boot)
 
 # --- AC state ---
-adb shell service call hvac_service 1 i32 1 i32 0 f 1.0    # PROP_AC_STATE on
-adb shell service call hvac_service 1 i32 1 i32 0 f 0.0    # PROP_AC_STATE off
+adb shell service call hvac_service 1 i32 287309825 i32 0 f 1.0    # PROP_AC_STATE on
+adb shell service call hvac_service 1 i32 287309825 i32 0 f 0.0    # PROP_AC_STATE off
 
 # --- Max ---
-adb shell service call hvac_service 1 i32 2 i32 0 f 1.0    # PROP_MAX_STATE on
-adb shell service call hvac_service 1 i32 2 i32 0 f 0.0    # PROP_MAX_STATE off
+adb shell service call hvac_service 1 i32 287309826 i32 0 f 1.0    # PROP_MAX_STATE on
+adb shell service call hvac_service 1 i32 287309826 i32 0 f 0.0    # PROP_MAX_STATE off
 
 # --- Recycle ---
-adb shell service call hvac_service 1 i32 3 i32 0 f 1.0    # PROP_RECYCLE_STATE on
-adb shell service call hvac_service 1 i32 3 i32 0 f 0.0    # PROP_RECYCLE_STATE off
+adb shell service call hvac_service 1 i32 287309827 i32 0 f 1.0    # PROP_RECYCLE_STATE on
+adb shell service call hvac_service 1 i32 287309827 i32 0 f 0.0    # PROP_RECYCLE_STATE off
 
 # --- Fan speed (0-12) ---
-adb shell service call hvac_service 1 i32 4 i32 0 f 7.0    # PROP_FAN_SPEED = 7
-adb shell service call hvac_service 1 i32 4 i32 0 f 0.0    # PROP_FAN_SPEED = 0 (off)
+adb shell service call hvac_service 1 i32 289406980 i32 0 f 7.0    # PROP_FAN_SPEED = 7
+adb shell service call hvac_service 1 i32 289406980 i32 0 f 0.0    # PROP_FAN_SPEED = 0 (off)
 
 # --- Temperature (driver = area 1, passenger = area 2) ---
-adb shell service call hvac_service 1 i32 5 i32 1 f 24.0   # PROP_TEMP driver
-adb shell service call hvac_service 1 i32 5 i32 2 f 20.0   # PROP_TEMP passenger
+adb shell service call hvac_service 1 i32 358612997 i32 1 f 24.0   # PROP_TEMP driver
+adb shell service call hvac_service 1 i32 358612997 i32 2 f 20.0   # PROP_TEMP passenger
 
 # --- Sync ---
-adb shell service call hvac_service 1 i32 6 i32 0 f 1.0    # PROP_SYNC on
-adb shell service call hvac_service 1 i32 6 i32 0 f 0.0    # PROP_SYNC off
+adb shell service call hvac_service 1 i32 287309830 i32 0 f 1.0    # PROP_SYNC on
+adb shell service call hvac_service 1 i32 287309830 i32 0 f 0.0    # PROP_SYNC off
 
 # --- Seat heating (driver = area 1, passenger = area 2) ---
-adb shell service call hvac_service 1 i32 7 i32 1 f 1.0    # PROP_SEAT_HEATING driver on
-adb shell service call hvac_service 1 i32 7 i32 1 f 0.0    # PROP_SEAT_HEATING driver off
-adb shell service call hvac_service 1 i32 7 i32 2 f 1.0    # PROP_SEAT_HEATING passenger on
-adb shell service call hvac_service 1 i32 7 i32 2 f 0.0    # PROP_SEAT_HEATING passenger off
+adb shell service call hvac_service 1 i32 354418695 i32 1 f 1.0    # PROP_SEAT_HEATING driver on
+adb shell service call hvac_service 1 i32 354418695 i32 1 f 0.0    # PROP_SEAT_HEATING driver off
+adb shell service call hvac_service 1 i32 354418695 i32 2 f 1.0    # PROP_SEAT_HEATING passenger on
+adb shell service call hvac_service 1 i32 354418695 i32 2 f 0.0    # PROP_SEAT_HEATING passenger off
 
 # --- Ventilation mode (1=foot, 2=foot+face, 3=face) ---
-adb shell service call hvac_service 1 i32 8 i32 0 f 1.0
-adb shell service call hvac_service 1 i32 8 i32 0 f 2.0
-adb shell service call hvac_service 1 i32 8 i32 0 f 3.0
+adb shell service call hvac_service 1 i32 289406984 i32 0 f 1.0
+adb shell service call hvac_service 1 i32 289406984 i32 0 f 2.0
+adb shell service call hvac_service 1 i32 289406984 i32 0 f 3.0
 
 # --- Auto ---
-adb shell service call hvac_service 1 i32 9 i32 0 f 1.0    # PROP_AUTO_MODE on
-adb shell service call hvac_service 1 i32 9 i32 0 f 0.0    # PROP_AUTO_MODE off
+adb shell service call hvac_service 1 i32 287309833 i32 0 f 1.0    # PROP_AUTO_MODE on
+adb shell service call hvac_service 1 i32 287309833 i32 0 f 0.0    # PROP_AUTO_MODE off
 
 # --- Defrost ---
-adb shell service call hvac_service 1 i32 10 i32 0 f 1.0   # PROP_DEFROST on
-adb shell service call hvac_service 1 i32 10 i32 0 f 0.0   # PROP_DEFROST off
+adb shell service call hvac_service 1 i32 287309834 i32 0 f 1.0   # PROP_DEFROST on
+adb shell service call hvac_service 1 i32 287309834 i32 0 f 0.0   # PROP_DEFROST off
 
 # --- Outside temp (logcat-only, no UI — onTempOutsideChanged just Log.d()s) ---
-adb shell service call hvac_service 1 i32 12 i32 0 f 30.0
+adb shell service call hvac_service 1 i32 291504140 i32 0 f 30.0
 ```
 
 ### Not covered by this pass

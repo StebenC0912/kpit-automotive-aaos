@@ -31,7 +31,7 @@ Every commit message must follow this exact structure — one field per line, in
 ```
 [hvac] AC toggle does not turn off after 2nd tap
 [issue tracker] JIRA-1042
-[description] Fix HvacService dropping the second setAcState(false) call in the same session.
+[description] Fix AllianceCarHvacService dropping the second setAcState(false) call in the same session.
 [symptom] Tapping AC on then off leaves the compressor running; UI shows AC off but VPS state stays on.
 [rootcause] HvacHandler cached the last-set boolean and skipped re-emitting an event when the new
 value equaled the cached one, so onAcStateChanged() never fired for the second call.

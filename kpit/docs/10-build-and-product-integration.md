@@ -83,7 +83,7 @@ the `service_manager` types `hvac_service`/`bluetooth_service` register under, n
 `adb shell service call hvac_service ...`/`adb shell service call bluetooth_service ...`
 functional-test commands to work at all.
 
-**Why it's needed:** `HvacService`/`IviBluetoothService` call `ServiceManager.addService("hvac_service"/
+**Why it's needed:** `AllianceCarHvacService`/`IviBluetoothService` call `ServiceManager.addService("hvac_service"/
 "bluetooth_service", mBinder)` (06-technical-requirements.md #6), but neither name had a
 `service_contexts` entry anywhere in this tree, so both fell back to the generic
 `default_android_service` SELinux type. Existing base policy lets `system_app` add/find that generic
@@ -156,12 +156,12 @@ Full-Treble simply forbids any coredomain process from touching a `/vendor` file
 |---|---|---|
 | Add an `allow` rule scoped to the lib's own type | ❌ | neverallow blocks by category (coredomain × vendor_file), not by type |
 | Keep `vendor: true`, keep loading it via `System.loadLibrary()` from `hvac-service` | ❌ | this *is* the blocked access — coredomain opening a `/vendor` file |
-| Keep `vendor: true`, move the code into its own vendor HAL process (`hwbinder` service), have `HvacService` talk to it over AIDL/HIDL instead of `dlopen`-ing it | ✅ | the HAL boundary is the Treble-sanctioned crossing point — coredomain talks to vendor code over Binder, never touches the vendor `.so` file itself |
+| Keep `vendor: true`, move the code into its own vendor HAL process (`hwbinder` service), have `AllianceCarHvacService` talk to it over AIDL/HIDL instead of `dlopen`-ing it | ✅ | the HAL boundary is the Treble-sanctioned crossing point — coredomain talks to vendor code over Binder, never touches the vendor `.so` file itself |
 | Drop `platform_apis: true` so the caller itself isn't coredomain | ✅ but costly | loses `ServiceManager` registry access (06-technical-requirements.md #6) — `addService`/`getService` breaks |
 
 **Concretely**, keeping `libvps` on `/vendor` would mean splitting it into two pieces: a small
 `vendor: true` HAL service process (e.g. `IVpsHal.aidl`, running as its own vendor domain, `init`
-service) that keeps whatever SoC-specific code needs to live on `/vendor`, and `HvacService`/JNI
+service) that keeps whatever SoC-specific code needs to live on `/vendor`, and `AllianceCarHvacService`/JNI
 becomes a Binder client of that HAL instead of loading the `.so` in-process
 (06-technical-requirements.md #7's "alternative not taken" — the same HAL approach rejected earlier
 for a different reason: matching AOSP's real `IVehicle` interface). That's substantially more work

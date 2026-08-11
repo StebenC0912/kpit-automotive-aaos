@@ -6,7 +6,7 @@ Detailed notes for each item are in [03-implementation-status.md](03-implementat
 ```
 vendor/kpit/automotive/
 ├── hmi/
-│    ├── hvac_app/                            ✅ compiles (see 03-implementation-status.md #8 for fixes applied)
+│    ├── hvac_app/                            ✅ compiles (see 03-implementation-status.md #9 for fixes applied)
 │    │    ├── Android.bp
 │    │    ├── AndroidManifest.xml
 │    │    ├── res/ (drawable, layout, values, xml, mipmap)
@@ -26,15 +26,15 @@ vendor/kpit/automotive/
 │    │    ├── base/                           ✅ done  ("base", not "base_comfort")
 │    │    │    ├── Android.bp, AndroidManifest.xml
 │    │    │    ├── jni/base_comfort_vhal_jni.cpp
-│    │    │    └── src/.../base/{manager/BaseComfortManager, service/BaseComfortService}.java
+│    │    │    └── src/.../base/{manager/AllianceCarBaseManager, service/AllianceCarBaseService}.java
 │    │    ├── hvac/                           ✅ done
 │    │    │    ├── Android.bp                 (split: hvac-manager-sdk + hvac-service)
 │    │    │    ├── AndroidManifest.xml
 │    │    │    ├── aidl/.../hvac/{HvacEvent, IHVACVehicleCallback, IHVACVehicleService}.aidl
 │    │    │    └── src/.../hvac/
 │    │    │         ├── HvacEvent.java
-│    │    │         ├── manager/ (HvacListener, HvacManager, HvacProperty, IHvacController, SystemListener)
-│    │    │         └── service/HvacService.java
+│    │    │         ├── manager/ (HvacListener, AllianceCarHvacManager, HvacProperty, IHvacController, SystemListener)
+│    │    │         └── service/AllianceCarHvacService.java
 │    │    └── seat/                           ⏳ todo
 │    │         ├── Android.bp                 ✅ exists but fully commented-out placeholder
 │    │         ├── AndroidManifest.xml        ❌ not created
@@ -57,7 +57,10 @@ vendor/kpit/automotive/
 │         └── wifi/                           ❌ not created (directory doesn't exist on disk)
 │
 └── vps/                                      HVAC portion ✅ done
-      ├── Android.bp                          cc_library_shared "libvps", installs to /system (see 10-build-and-product-integration.md)
-      ├── include/ (IVpsHandler, HvacHandler, VpsDispatcher)   [SeatHandler.h ❌ not created]
-      └── src/ (HvacHandler.cpp, VpsDispatcher.cpp)             [SeatHandler.cpp ❌ not created]
+      ├── Android.bp                          cc_library_shared "libvps" + cc_test "libvps_test", installs to /system (see 10-build-and-product-integration.md)
+      ├── include/ (IVpsHandler, VpsDispatcher, HvacHandler, IHvacBackend, FakeHvacBackend,
+      │             VpsPropConfig, VpsPropertyId)              [SeatHandler.h ❌ not created]
+      ├── src/ (VpsDispatcher.cpp, HvacHandler.cpp, FakeHvacBackend.cpp, VpsPropConfig.cpp)
+      │                                                        [SeatHandler.cpp ❌ not created]
+      └── tests/ (HvacHandlerTest.cpp, VpsDispatcherTest.cpp)  libvps_test, see 03-implementation-status.md #13
 ```

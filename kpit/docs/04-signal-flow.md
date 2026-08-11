@@ -30,7 +30,7 @@ is the general shape for both.
      for AVRCP ([05-bluetooth-architecture.md](05-bluetooth-architecture.md)) — no JNI, no ECU involved.
 2. The Service maps the raw signal to the semantic AIDL listener call — e.g. `onAcStateChanged(boolean)`
    for Comfort, `onDeviceConnectionChanged(...)` for Connectivity — and fans it out via
-   `RemoteCallbackList` (shared by `BaseComfortService`/`BaseConnectivityService`).
+   `RemoteCallbackList` (shared by `AllianceCarBaseService`/`BaseConnectivityService`).
 3. The Manager's AIDL stub receives the callback and forwards it to the registered ViewModel listener.
 4. ViewModel updates state via `liveData.postValue(...)` (thread-safe).
 5. Activity, observing `LiveData`, updates the UI on the main thread.

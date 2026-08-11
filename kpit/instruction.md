@@ -52,7 +52,7 @@ roman numeral in the table above, not a page number.
   (06-technical-requirements.md #16). Rebuilt and rebooted — confirmed working.
 - **Listener-registration fix (2026-08-03, confirmed):** second bug found immediately after the one
   above — with the service running, injected properties still never reached the HMI apps because
-  `HvacManager`/`IviBluetoothManager` only connected to their service on an *outbound* call, never
+  `AllianceCarHvacManager`/`IviBluetoothManager` only connected to their service on an *outbound* call, never
   on listener registration. Fixed in both managers (06-technical-requirements.md #17). Confirmed:
   `hvac_app`'s panel now unlocks and reacts to injected signals.
 - **Applied and confirmed (2026-08-03):** `android:directBootAware="true"` on both domain apps,

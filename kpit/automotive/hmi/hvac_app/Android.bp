@@ -5,8 +5,9 @@ package {
 // -----------------------------------------------------------------------------------------------
 // HVAC HMI: MVVM UI application (section I, Component 1). Depends only on hvac-manager-sdk
 // (service/comfort/hvac/Android.bp) - the Activity/ViewModel never touch AIDL/Binder/JNI directly,
-// only HvacManager. HvacManager extends BaseComfortManager and resolves HvacService via
-// ServiceManager.getService("hvac_service") - a restricted @SystemApi - so THIS app must itself be
+// only AllianceCarHvacManager. AllianceCarHvacManager extends AllianceCarBaseManager and resolves
+// AllianceCarHvacService via ServiceManager.getService("hvac_service") - a restricted @SystemApi -
+// so THIS app must itself be
 // privileged/platform-signed (sharedUserId in AndroidManifest.xml + certificate/platform_apis
 // below) purely to be allowed to call it. See instruction.md IV.6 for the tradeoff this implies.
 // -----------------------------------------------------------------------------------------------

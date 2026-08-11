@@ -29,8 +29,8 @@ Two distinct failure modes this guards against — **not the same bug**:
   for raw View mutation.
 
 Both domains share the base-class pair this contract actually lives in —
-`BaseComfortService`/`BaseConnectivityService` on the service side,
-`BaseComfortManager`/`BaseConnectivityManager` on the client side — which is why the rule is
+`AllianceCarBaseService`/`BaseConnectivityService` on the service side,
+`AllianceCarBaseManager`/`BaseConnectivityManager` on the client side — which is why the rule is
 identical in HVAC and Bluetooth rather than being domain-specific.
 
 ## 1. The full thread-hop chain, end to end
@@ -46,7 +46,7 @@ toggle as the running example:
 [JNI callback thread] base_comfort_vhal_jni.cpp invokes onNativePropertyEvent()
         │
         ▼  HOP 1 — service hops onto its own worker pool immediately
-[BaseComfortService.mExecutorPool, 1 of 5 fixed threads]
+[AllianceCarBaseService.mExecutorPool, 1 of 5 fixed threads]
         │  onNativePropertyEvent() -> mExecutorPool.execute(() -> onVehiclePropertyChanged(...))
         │  ("Immediately hops onto mExecutorPool so the JNI callback thread is released right
         │   away and onVehiclePropertyChanged always runs off the main thread.")
@@ -58,7 +58,7 @@ toggle as the running example:
         │  for hvac_app to finish handling the event.
         ▼  HOP 3 — client-side Binder thread pool (NOT hvac_app's main thread)
 [hvac_app's own Binder thread pool]
-        │  HvacManager.mBinderCallback (IHVACVehicleCallback.Stub) — onChangeEvent() executes here.
+        │  AllianceCarHvacManager.mBinderCallback (IHVACVehicleCallback.Stub) — onChangeEvent() executes here.
         │  This is a thread owned by the Android Binder driver's thread pool for this process,
         │  completely independent of whichever thread called registerCallback().
         ▼  HOP 4 — synchronous in-process dispatch, still on the Binder thread
@@ -133,7 +133,7 @@ was originally called. True symmetrically on both ends of every AIDL interface i
       ...
   };
   ```
-- **Client side** (`HvacManager.mBinderCallback`, `IviBluetoothManager.mBinderListener`): same
+- **Client side** (`AllianceCarHvacManager.mBinderCallback`, `IviBluetoothManager.mBinderListener`): same
   story in reverse — the *service's* outbound call lands on the *app's* Binder thread pool. Neither
   `Stub` body posts to a `Handler` or hops onto an executor of its own; they dispatch straight to
   the registered listeners synchronously:
@@ -197,13 +197,13 @@ Contrast with `IHVACVehicleService.setVehicleProperty()` / `IIviBluetoothService
 those are **not** `oneway`, and that's also deliberate: they're outbound commands from a single
 app to the one system service, where the caller (the app) legitimately wants ordinary synchronous
 Binder semantics (a `RemoteException` is a meaningful, catchable signal there — see every
-`HvacManager`/`IviBluetoothManager` command method's
+`AllianceCarHvacManager`/`IviBluetoothManager` command method's
 `try { service.xxx(); } catch (RemoteException e)` pattern). `oneway` is specifically for the
 fan-out-to-many-listeners direction, not every AIDL method in the system.
 
 ## 4. `RemoteCallbackList` — why the broadcast loop is defensive by construction
 
-Both `BaseComfortService` and `BaseConnectivityService` share this identical helper:
+Both `AllianceCarBaseService` and `BaseConnectivityService` share this identical helper:
 
 ```java
 protected final int broadcastToListeners(ListenerInvocation<T> invocation) {
@@ -235,11 +235,11 @@ accumulate as permanent dead weight, and the inner `try/catch` means **one** lis
 | # | Rule | Enforced where |
 |---|------|------------------|
 | 1 | Every AIDL **listener/callback** interface (service→client fan-out) is `oneway`. Outbound **command** interfaces (client→service) are ordinary synchronous AIDL. | `IIviBluetoothListener.aidl`, `IHVACVehicleCallback.aidl` vs. `IIviBluetoothService.aidl`, `IHVACVehicleService.aidl` |
-| 2 | A service's `Stub` methods never execute business logic inline — every method body is a one-line hop onto `mExecutorPool`. | `IviBluetoothService.mBinder`, and identically in `HvacService` |
-| 3 | Any event origin outside your own worker pool (native/JNI callback thread, `BroadcastReceiver.onReceive()`, a framework callback registered with an explicit `Handler`) re-hops onto `mExecutorPool` **before** doing any IPC or broadcast work. | `BaseComfortService.onNativePropertyEvent()`, `IviBluetoothService.mConnectivityReceiver`, `IviBluetoothService.mMediaControllerCallback` |
-| 4 | Client-side AIDL `Stub` callbacks dispatch synchronously to registered listeners — no extra Handler hop — because the *next* layer (ViewModel) is responsible for the final main-thread hop. | `HvacManager.mBinderCallback`, `IviBluetoothManager.mBinderListener` |
+| 2 | A service's `Stub` methods never execute business logic inline — every method body is a one-line hop onto `mExecutorPool`. | `IviBluetoothService.mBinder`, and identically in `AllianceCarHvacService` |
+| 3 | Any event origin outside your own worker pool (native/JNI callback thread, `BroadcastReceiver.onReceive()`, a framework callback registered with an explicit `Handler`) re-hops onto `mExecutorPool` **before** doing any IPC or broadcast work. | `AllianceCarBaseService.onNativePropertyEvent()`, `IviBluetoothService.mConnectivityReceiver`, `IviBluetoothService.mMediaControllerCallback` |
+| 4 | Client-side AIDL `Stub` callbacks dispatch synchronously to registered listeners — no extra Handler hop — because the *next* layer (ViewModel) is responsible for the final main-thread hop. | `AllianceCarHvacManager.mBinderCallback`, `IviBluetoothManager.mBinderListener` |
 | 5 | ViewModels **never** call `LiveData.setValue()` from a listener callback — always `postValue()`, which is thread-safe from any calling thread. | Every `push*State()` method in `HvacViewModel.java`/`BluetoothViewModel.java` — zero `setValue()` calls exist in either file |
-| 6 | `RemoteCallbackList.beginBroadcast()`/`finishBroadcast()` always paired in a `try/finally`; one listener's `RemoteException` is caught per-iteration and never aborts the rest of the broadcast. | `broadcastToListeners()` in both `BaseComfortService` and `BaseConnectivityService` |
+| 6 | `RemoteCallbackList.beginBroadcast()`/`finishBroadcast()` always paired in a `try/finally`; one listener's `RemoteException` is caught per-iteration and never aborts the rest of the broadcast. | `broadcastToListeners()` in both `AllianceCarBaseService` and `BaseConnectivityService` |
 | 7 | A framework callback that lets you pick its thread via a `Handler` parameter is not automatically "safe" on that thread — it still must re-hop onto the worker pool before doing IPC/broadcast work. | `IviBluetoothService.mMediaControllerCallback` registered with `mMainHandler`, then immediately re-hopping via `mExecutorPool.execute(...)` in every override |
 
 ## 6. Self-check scenarios
@@ -279,11 +279,11 @@ onboarding or a design-review discussion:
 - [05-bluetooth-architecture.md](05-bluetooth-architecture.md) — why AVRCP goes through
   `MediaSessionManager` instead of `BluetoothAvrcpController` in the first place (the precondition
   for §1's branch).
-- `service/comfort/base/src/com/kpit/comfort/base/service/BaseComfortService.java` and the
+- `service/comfort/base/src/com/kpit/comfort/base/service/AllianceCarBaseService.java` and the
   Connectivity-domain twin, `service/connectivity/base/src/com/kpit/connectivity/base/service/BaseConnectivityService.java`
   — the shared `mExecutorPool`/`RemoteCallbackList`/`broadcastToListeners()` machinery both
   domains inherit.
-- `service/comfort/base/src/com/kpit/comfort/base/manager/BaseComfortManager.java` and
+- `service/comfort/base/src/com/kpit/comfort/base/manager/AllianceCarBaseManager.java` and
   `service/connectivity/base/src/com/kpit/connectivity/base/manager/BaseConnectivityManager.java`
   — client-side connection/reconnection/`DeathRecipient` handling (`getService()`/`connectLocked()`).
 - `service/connectivity/bluetooth/src/com/kpit/bluetooth/service/IviBluetoothService.java` — the

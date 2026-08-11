@@ -22,18 +22,18 @@
    restart/reboot/app-install-while-already-paired. See [05-bluetooth-architecture.md](05-bluetooth-architecture.md)
    for the Bluetooth-specific fix.
 6. **Manager IPC via `ServiceManager` (registry lookup, not bind):**
-   - `HvacManager` extends `BaseComfortManager<IHVACVehicleService>` and resolves the service via
-     `ServiceManager.getService("hvac_service")`; `HvacService.onCreate()` publishes itself with
+   - `AllianceCarHvacManager` extends `AllianceCarBaseManager<IHVACVehicleService>` and resolves the service via
+     `ServiceManager.getService("hvac_service")`; `AllianceCarHvacService.onCreate()` publishes itself with
      `ServiceManager.addService(...)` to make that lookup succeed.
    - `getService`/`addService` are restricted `@SystemApi` — any module touching them needs the full
      platform classpath, not a curated `sdk_version` stub. This is transitive: `base-comfort-manager`,
      `hvac-manager-sdk`, `hvac-service`, and `hvac_app` all set `platform_apis: true` and drop
      `sdk_version`. `hvac_app` additionally needs `sharedUserId="android.uid.system"`,
      `certificate: "platform"`, `privileged: true` — same posture as the service itself, since it's the
-     process calling `HvacManager` at runtime.
+     process calling `AllianceCarHvacManager` at runtime.
    - Alternative not taken: `bindService()` + a `BIND_HVAC_SERVICE` permission would let `hvac_app` stay
-     unprivileged — the standard cross-APK mechanism, tried earlier and reverted to keep `HvacManager`
-     on the `BaseComfortManager` hierarchy. Worth revisiting if a non-privileged client is ever needed.
+     unprivileged — the standard cross-APK mechanism, tried earlier and reverted to keep `AllianceCarHvacManager`
+     on the `AllianceCarBaseManager` hierarchy. Worth revisiting if a non-privileged client is ever needed.
 7. **JNI ↔ VPS wiring — in-process call, not a Binder/HAL service:**
    - `base_comfort_vhal_jni.cpp` calls `vps::VpsDispatcher::instance()` directly, in-process, rather
      than binding a real `IVehicle` HAL over Binder. `libbase_comfort_jni` links `libvps` as a
@@ -43,7 +43,7 @@
      unverifiable and fragile assumption from this vendor tree. Revisited (and still not taken, for a
      different reason) in [10-build-and-product-integration.md](10-build-and-product-integration.md)'s
      sepolicy notes, when weighing whether to keep `vendor: true` on `libvps`/`libbase_comfort_jni`.
-   - `VpsDispatcher` is a process-wide singleton, one per `BaseComfortService` process. It owns no
+   - `VpsDispatcher` is a process-wide singleton, one per `AllianceCarBaseService` process. It owns no
      domain knowledge — just routes by `propId` to whichever registered `IVpsHandler` claims it.
      Handlers register once per process (`std::call_once` in `nativeInit()`); a process registering an
      irrelevant handler is harmless since each handler only answers the propIds it owns.
@@ -135,8 +135,8 @@
 13. **Build lesson — `HvacProperty.java` filename didn't match its public class (2026-07-31):**
     `javac` failed with `class HvacProperties is public, should be declared in a file named
     HvacProperties.java` on `service/comfort/hvac/src/com/kpit/hvac/manager/HvacProperty.java`. The
-    file held the constants class referenced everywhere else in the tree — `HvacManager.java`,
-    `HvacService.java`, `vps/include/HvacHandler.h`, `vps/src/HvacHandler.cpp` — as `HvacProperties`
+    file held the constants class referenced everywhere else in the tree — `AllianceCarHvacManager.java`,
+    `AllianceCarHvacService.java`, `vps/include/HvacHandler.h`, `vps/src/HvacHandler.cpp` — as `HvacProperties`
     (plural, matching #7's own reference to "`HvacProperties.java`"); only the file on disk was
     typo'd singular. Fix: renamed the file to `HvacProperties.java`; the class and every caller were
     already correct, so no source changes were needed.
@@ -247,7 +247,7 @@
       does not exist` — the very first documented test command, never previously run.
     - Root cause: rule 3 above is incomplete. `android:persistent="true"` makes
       `ActivityManagerService` fork `com.kpit.hvac`/`com.kpit.bluetooth`'s process at boot and call
-      `Application.onCreate()` — that's it. It does not start the `<service>` (`HvacService`/
+      `Application.onCreate()` — that's it. It does not start the `<service>` (`AllianceCarHvacService`/
       `IviBluetoothService`) declared inside the app's manifest. `onCreate()` is where
       `ServiceManager.addService(...)` lives (rule 6), so if nothing ever calls
       `startService()`/`bindService()` on those `Service` classes, that `addService()` call never
@@ -259,7 +259,7 @@
       `service_manager` types" note. `kpit/emulator/emulator_boot.log` (kernel/QEMU-console log, not
       app logcat — but SELinux `service_manager`-class denials route through the kernel audit log
       too) has **zero** `avc: denied ... tclass=service_manager` entries anywhere in the whole boot.
-      If `HvacService.onCreate()` had even attempted `addService()` and been denied, or if `shell`
+      If `AllianceCarHvacService.onCreate()` had even attempted `addService()` and been denied, or if `shell`
       had been denied `find`, one of those would show up. Neither did — meaning the registration
       attempt itself never happened, not that it happened and got blocked.
     - Fix: added `HvacApplication`
@@ -275,16 +275,16 @@
     - **Confirmed (2026-08-03):** rebuilt, repackaged, rebooted — `hvac_service` now registers on
       its own at boot, no manual `am start-service` needed. [11-testing-hvac.md](11-testing-hvac.md)
       Step 1 passes directly.
-17. **Bug — `HvacManager`/`IviBluetoothManager` never connect to their service until an outbound
+17. **Bug — `AllianceCarHvacManager`/`IviBluetoothManager` never connect to their service until an outbound
     call happens, so registered listeners receive nothing (found 2026-08-03, right after #16):**
     - Symptom: with #16's fix applied and `hvac_service` actually running, injecting
       `PROP_VEHICLE_STATE` via `adb shell service call hvac_service 1 i32 11 i32 0 f 5.0` returns a
       successful `Parcel` — but `hvac_app`'s UI never reacts, and stays locked forever.
-    - Root cause: `BaseComfortManager`/`BaseConnectivityManager`'s connection to the remote service
+    - Root cause: `AllianceCarBaseManager`/`BaseConnectivityManager`'s connection to the remote service
       (`ServiceManager.getService()` + the remote `registerCallback()`/`registerListener()` call
       that tells the service where to send events) only happens lazily, inside `getService()`,
       called from `connectLocked()`. Nothing calls `getService()` until an *outbound* command method
-      does — `HvacManager.setProperty()` / `IviBluetoothManager.connect()`/`disconnect()`/
+      does — `AllianceCarHvacManager.setProperty()` / `IviBluetoothManager.connect()`/`disconnect()`/
       `sendMediaCommand()`. `registerSystemListener()`/`registerPropertyListener()`/
       `registerBluetoothListener()` — the only calls `HvacViewModel`/`BluetoothViewModel` make in
       their constructors — only appended to a local `List`; they never touched `getService()`. So
@@ -299,7 +299,7 @@
       aren't gated on connection state), but its manager still never connects on its own, since the
       app has no connect/disconnect button at all ([12-testing-bluetooth.md](12-testing-bluetooth.md))
       — only `sendMediaCommand()` (Play/Pause/Next/Previous) would ever trigger a connection attempt.
-    - Fix: `registerSystemListener()`/`registerPropertyListener()` (`HvacManager.java`) and
+    - Fix: `registerSystemListener()`/`registerPropertyListener()` (`AllianceCarHvacManager.java`) and
       `registerBluetoothListener()` (`IviBluetoothManager.java`) now call `getService()` (return
       value discarded) right after adding the listener — registering interest in events is itself
       now enough to force the connection attempt, independent of whether/when any outbound command
@@ -341,8 +341,8 @@
       (`getSharedPreferences()`, `openFileOutput()`, `getFilesDir()`, a plain `SQLiteOpenHelper`) all
       resolve to credential-encrypted (CE) storage, which isn't mounted yet during Direct Boot — any
       of those calls from a Direct-Boot-aware component before unlock throws and crashes. Grepped
-      `service/` (`HvacService`/`HvacApplication`, `IviBluetoothService`/`IviBluetoothApplication`,
-      both `BaseComfortService`/`BaseConnectivityService`, both base managers) for
+      `service/` (`AllianceCarHvacService`/`HvacApplication`, `IviBluetoothService`/`IviBluetoothApplication`,
+      both `AllianceCarBaseService`/`BaseConnectivityService`, both base managers) for
       `SharedPreferences`/`openFileOutput`/`getFilesDir`/`getDatabasePath`/`SQLiteOpenHelper` — zero
       hits. These components only do Binder IPC, an `ExecutorService`, JNI (`System.loadLibrary` off
       `/system`, not CE storage), and platform service lookups (`BluetoothAdapter`,
