@@ -1,0 +1,7 @@
+# Labels the vendor.kpit.vps-service binary so init_daemon_domain(vendor_kpit_vps_default)
+# (hal_vps.te) can transition init into that domain when starting it (vps/service/vps-service.rc).
+# Without this entry the binary keeps the generic vendor_file label, init never transitions into
+# vendor_kpit_vps_default, and AServiceManager_addService fails (service never shows up in
+# `adb shell service list` / `ps -A`). Pattern matches system/sepolicy/vendor/file_contexts's
+# hal_vehicle_default_exec entry.
+/(vendor|system/vendor)/bin/hw/vendor\.kpit\.vps-service    u:object_r:vendor_kpit_vps_default_exec:s0

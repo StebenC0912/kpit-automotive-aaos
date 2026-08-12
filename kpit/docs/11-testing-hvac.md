@@ -1,10 +1,13 @@
 # XI. Functional Testing — HVAC App (manual, no source changes)
 
 Procedure to exercise every `hvac_app` control end-to-end against the real `hvac-service` +
-`libvps` stack, without editing any source — plus two findings surfaced while mapping the
-command/event path for this plan that change what "the button worked" actually means per control.
-Written 2026-08-02. **Step 1 confirmed passing (2026-08-03)** after the fixes below — the full
-12-row control matrix in Step 2 hasn't been individually walked through yet.
+`vendor.kpit.vps-service` stack, without editing any source — plus two findings surfaced while
+mapping the command/event path for this plan that change what "the button worked" actually means
+per control. Written 2026-08-02. **Step 1 confirmed passing (2026-08-03)** after the fixes below —
+the full 12-row control matrix in Step 2 hasn't been individually walked through yet, and as of
+2026-08-12 nothing below has been re-run since VHAL-alignment Stage 4 moved `HvacHandler`/
+`VpsDispatcher` out of `hvac-service` into their own daemon (see the new prerequisite section right
+before Step 1).
 
 **First real attempt (2026-08-03) failed at Step 1** with `Service hvac_service does not exist` —
 `hvac_service` was never registered at all, because `persistent="true"` doesn't auto-start the
@@ -149,30 +152,39 @@ to make the three bugs above (and future ones) easier to diagnose from `adb logc
 `adb logcat -s HvacActivity:* HvacViewModel:* AllianceCarHvacManager:* AllianceCarHvacService:* BaseComfortVhalJni:*
 VpsDispatcher:* HvacHandler:*`.
 
-### Clarification — what `adb shell service call hvac_service` actually round-trips through (2026-08-05, updated 2026-08-10 for Stage 3's backend split — see 03-implementation-status.md #13)
+### Clarification — what `adb shell service call hvac_service` actually round-trips through (2026-08-05, updated 2026-08-10 for Stage 3's backend split, updated again 2026-08-12 for Stage 4's out-of-process daemon — see 03-implementation-status.md #13)
 Easy to misread as "injecting an event directly into VPS." It isn't — adb never talks to VPS at
-all. The round trip is **service (in) → VPS (validate, delegate to backend) → backend (write +
-fire change callback) → VPS (subscription check) → service (out) → app**:
+all. As of Stage 4, it's also no longer a single-process round trip: `VpsDispatcher`/`HvacHandler`
+now live inside `vendor.kpit.vps-service`, a separate daemon reached over the `vendor.kpit.vps`
+AIDL interface, so the path crosses a real Binder process boundary twice (once out, once back for
+the push). The round trip is **service (in) → AIDL → vps-service (validate, delegate to backend) →
+backend (write + fire change callback) → vps-service (subscription check) → AIDL callback →
+service (out) → app**:
 
 ```
-adb service call → AllianceCarHvacService.setVehicleProperty()          [Binder, enters the service]
-                  → JNI → VpsDispatcher::setFloatProperty()
+adb service call → AllianceCarHvacService.setVehicleProperty()     [Binder, enters hvac-service]
+                  → base_comfort_vhal_jni.cpp                      [now an AIDL/NDK Binder client]
+                  → [process boundary] vendor.kpit.vps AIDL → VpsServiceImpl::setFloatProperty()
+                  → VpsDispatcher::setFloatProperty()
                   → HvacHandler::setProperty()                 [validates config, delegates to backend]
                   → FakeHvacBackend::setValue()                [writes mStore, fires change callback]
                   → HvacHandler::onBackendValueChanged()        [subscription check, then forwards]
+                  → VpsServiceImpl → [process boundary] IVpsCallback::onPropertyEvent()  [oneway push]
                   → (bound JNI callback) AllianceCarHvacService.onVehiclePropertyChanged()
                   → broadcastToListeners → IHVACVehicleCallback.onChangeEvent()  [back out to the app]
 ```
 
 `AllianceCarHvacService.setVehicleProperty()` (`service/comfort/hvac/src/com/kpit/hvac/service/AllianceCarHvacService.java:94-108`)
 itself has no code that calls `onChangeEvent`/`broadcastToListeners` — it only forwards the value
-into VPS and returns. The event only fires because `FakeHvacBackend::setValue()`
-(`vps/src/FakeHvacBackend.cpp:69-77`, Stage 3) unconditionally fires its change callback on every
-write, which `HvacHandler::onBackendValueChanged()` only forwards on if something is actually
-subscribed to that exact `(propId, areaId)` — the same callback path the boot-time
-`subscribeToVehicleProperties()` wired up — so adb's write and a real HMI-driven write are
-indistinguishable once they reach VPS, and both come back out through the service, never directly
-from VPS to the app.
+into VPS (now over AIDL, via the JNI Binder client) and returns. The event only fires because
+`FakeHvacBackend::setValue()` (`vps/src/FakeHvacBackend.cpp:69-77`, Stage 3, byte-for-byte unchanged
+by Stage 4) unconditionally fires its change callback on every write, which
+`HvacHandler::onBackendValueChanged()` only forwards on if something is actually subscribed to that
+exact `(propId, areaId)` — the same callback path the boot-time `subscribeToVehicleProperties()`
+wired up — so adb's write and a real HMI-driven write are indistinguishable once they reach
+`vps-service`, and both come back out through `hvac-service`, never directly from `vps-service` to
+the app. See Step 0 above before relying on this path — it depends on `vps-service` actually being
+up, which was unverified as of this update.
 
 This echo-on-write pattern is not a stub/mock shortcut — `HvacHandler.h`'s class comment says it
 mirrors real VHAL/ECU behavior deliberately: a command's `setProperty` call doesn't synchronously
@@ -195,6 +207,45 @@ doing the same `mStore` write + `notify()` `simulationLoop()` already does) expo
 AIDL surface — e.g. via `Binder.onShellCommand()` / `adb shell cmd hvac_service ...` — so it stays
 separate from `setVehicleProperty`, the way a real VSP tool is architecturally separate from an
 app's command API. Not built as of this note; flagged here in case it's needed later.
+
+### Step 0 — verify `vendor.kpit.vps-service` (Stage 4 daemon) is running (added 2026-08-12)
+Since VHAL-alignment Stage 4 (`03-implementation-status.md` item 13), `HvacHandler`/`VpsDispatcher`
+no longer run in-process inside `hvac-service` — they live in a separate vendor daemon,
+`vendor.kpit.vps-service`, reached over the `vendor.kpit.vps` AIDL interface from
+`base_comfort_vhal_jni.cpp` (now a Binder client, not a direct in-process caller). Every command in
+Step 1–3 below depends on that daemon being up first; if it isn't, `hvac_service`'s calls never
+reach `HvacHandler` at all.
+
+**First real attempt (2026-08-12) found the daemon never starts** — absent from both
+`adb shell ps -A` and `adb shell service list`, even though the build packaged the binary, init
+script, and VINTF manifest fragment correctly (confirmed present under
+`out/target/product/<device>/vendor/{bin/hw,etc/init,etc/vintf/manifest}/`, and
+`vendor.kpit.vps.IVpsService/default` present in the built `vendor_service_contexts`). **Root
+cause:** `vendor/kpit/automotive/sepolicy/` had `hal_vps.te` (declaring
+`vendor_kpit_vps_default_exec` and `init_daemon_domain(vendor_kpit_vps_default)`) and
+`service_contexts`, but no `file_contexts` — so `/vendor/bin/hw/vendor.kpit.vps-service` never
+actually got labeled `vendor_kpit_vps_default_exec`. Without that label,
+`init_daemon_domain`'s domain transition never fires, `AServiceManager_addService` in
+`service_main.cpp` fails, its `CHECK_EQ` triggers `LOG(FATAL)`, and the process exits immediately —
+invisible in a `ps` snapshot, not a hang or a silent no-op. **Fixed** by adding
+`vendor/kpit/automotive/sepolicy/file_contexts` labeling that exact path, matching the pattern real
+AOSP uses for `hal_vehicle_default_exec` (`system/sepolicy/vendor/file_contexts:16-17`).
+**Confirmed fixed (2026-08-12)** — rebuilt with the `file_contexts` addition and rebooted;
+`vendor.kpit.vps-service` now comes up. Step 1–3 below have not yet been individually re-walked
+against the new daemon (only the daemon's presence was confirmed) — do that next.
+
+Before running Step 1, confirm the daemon is actually up:
+```bash
+adb shell ps -A | grep vps-service
+adb shell service list | grep vps          # expect: vendor.kpit.vps.IVpsService/default
+adb logcat -s VpsService:*                 # tag set by service_main.cpp's SetDefaultTag
+```
+If it's still missing after a rebuild that includes the `file_contexts` fix, check for further
+denials — the sepolicy for this daemon was hand-written and had never been run through
+`checkpolicy`/booted before this pass, so more than one gap is plausible:
+```bash
+adb shell logcat -d | grep -i "avc:.*denied"
+```
 
 ### Step 1 — unlock the panel
 ```bash

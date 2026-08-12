@@ -433,3 +433,33 @@ checkpoint, now also covering everything Stage 4 added); multi-client `IVpsCallb
 4 stayed single-subscriber, matching `HvacHandler`'s pre-existing single-callback field — real work
 if/when Seat needs simultaneous VPS access); a `RealCanHvacBackend` (independent of Stage 4, still
 just the Stage 3 seam with nothing plugged into it).
+
+### Session state as of 2026-08-12
+First real Soong build + emulator boot of Stage 4 (closes "not done" item 1 from the 2026-08-11
+checkpoint, partially — build succeeded, boot test found and fixed one bug, full functional re-test
+of `11-testing-hvac.md` still outstanding).
+
+**Found:** `vendor.kpit.vps-service` built and packaged correctly (binary, `vps-service.rc`,
+`vps-service.xml` VINTF fragment, and `vendor.kpit.vps.IVpsService/default` all present in the built
+`out/target/product/<device>/vendor/` tree) but never appeared in `adb shell ps -A` or
+`adb shell service list` after boot — confirming the Stage 4 sepolicy risk flagged in the
+2026-08-11 checkpoint was real. **Root cause:** `vendor/kpit/automotive/sepolicy/` had `hal_vps.te`
+(declaring `vendor_kpit_vps_default_exec` + `init_daemon_domain(vendor_kpit_vps_default)`) and
+`service_contexts`, but no `file_contexts` entry labeling
+`/vendor/bin/hw/vendor.kpit.vps-service` as `vendor_kpit_vps_default_exec` — confirmed missing from
+the built `vendor_file_contexts` too. Without that label, `init_daemon_domain`'s transition never
+fires, `AServiceManager_addService` fails, `service_main.cpp`'s `CHECK_EQ` triggers `LOG(FATAL)`,
+and the daemon exits immediately on every boot — silent in a `ps` snapshot rather than a hang.
+**Fixed** by adding `vendor/kpit/automotive/sepolicy/file_contexts`, matching the pattern real AOSP
+uses for `hal_vehicle_default_exec` (`system/sepolicy/vendor/file_contexts:16-17`). Also updated
+`kpit/docs/11-testing-hvac.md` with a new "Step 0" (verify the daemon is up before running Step 1)
+and refreshed its round-trip diagram, which still described Stage 3's in-process path.
+
+**Confirmed fixed (2026-08-12):** rebuilt with the `file_contexts` addition and rebooted —
+`vendor.kpit.vps-service` now appears in `ps`/`service list`, closing "not done" item 1 from the
+2026-08-11 checkpoint as far as "does the daemon boot" goes.
+
+**Not done:** `11-testing-hvac.md`'s Step 1–3 haven't been individually re-walked against the new
+daemon yet — only its presence was confirmed, not that HVAC commands/events still round-trip
+correctly now that they cross the new `vendor.kpit.vps` AIDL boundary instead of running in-process.
+That's the next verification step.
