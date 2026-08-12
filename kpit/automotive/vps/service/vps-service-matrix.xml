@@ -1,0 +1,10 @@
+<compatibility-matrix version="1.0" type="framework" level="8">
+    <hal format="aidl" optional="true">
+        <name>vendor.kpit.vps</name>
+        <version>1</version>
+        <interface>
+            <name>IVpsService</name>
+            <instance>default</instance>
+        </interface>
+    </hal>
+</compatibility-matrix>

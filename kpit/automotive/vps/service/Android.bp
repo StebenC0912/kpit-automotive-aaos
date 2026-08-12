@@ -25,7 +25,7 @@ cc_binary {
         "libbase",
         "liblog",
         "libbinder_ndk",
-        "vendor.kpit.vps-ndk",
+        "vendor.kpit.vps-V1-ndk",
         "libvps",
     ],
     cflags: [

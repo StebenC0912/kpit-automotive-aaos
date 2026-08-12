@@ -31,6 +31,17 @@ PRODUCT_PACKAGES += \
 BOARD_SEPOLICY_DIRS += vendor/kpit/automotive/sepolicy
 
 #
+# vendor.kpit.vps-service's vintf_fragment (vps-service.xml) puts
+# vendor.kpit.vps.IVpsService/default into the device manifest, but nothing declared it in a
+# framework compatibility matrix, so assemble_vintf's compatibility check fails with "instances
+# are in the device manifest but not specified in framework compatibility matrix". This is a
+# device-specific HAL (option 4 in that error's suggested fixes), so it needs its own matrix
+# fragment - same mechanism device/generic/car/common/car.mk uses for its own
+# device.generic.car.emulator.IVehicleBus HAL via device_framework_matrix_product.xml.
+#
+DEVICE_PRODUCT_COMPATIBILITY_MATRIX_FILE += vendor/kpit/automotive/vps/service/vps-service-matrix.xml
+
+#
 # sdk_car_x86_64.mk inherits packages/services/Car/car_product/build/car_generic_system.mk,
 # which declares a strict artifact path requirement over TARGET_COPY_OUT_ROOT/SYSTEM (GSI
 # compliance - only files car_generic_system.mk itself lists may land in system.img). These
@@ -47,6 +58,12 @@ BOARD_SEPOLICY_DIRS += vendor/kpit/automotive/sepolicy
 # it's vendor.kpit.vps-service's dependency now, not hvac-service's, so it moved back to
 # /vendor/lib64 - outside TARGET_COPY_OUT_SYSTEM, no allowlist entry needed.
 #
+# vendor.kpit.vps-V1-ndk is the AIDL NDK backend libbase_comfort_jni links to reach
+# vendor.kpit.vps-service (see vps/aidl/Android.bp). Because that client lives in /system,
+# Soong builds a second, system-partition variant of the NDK lib alongside the vendor-partition
+# one vps-service itself links, and that variant lands under TARGET_COPY_OUT_SYSTEM too -
+# same allowlisting requirement as libbase_comfort_jni.so above.
+#
 PRODUCT_ARTIFACT_PATH_REQUIREMENT_ALLOWED_LIST += \
     system/etc/permissions/privapp_permissions_bluetooth.xml \
     system/priv-app/bluetooth-app/% \
@@ -54,4 +71,6 @@ PRODUCT_ARTIFACT_PATH_REQUIREMENT_ALLOWED_LIST += \
     system/priv-app/hvac-app/% \
     system/priv-app/hvac-service/% \
     system/lib/libbase_comfort_jni.so \
-    system/lib64/libbase_comfort_jni.so
+    system/lib64/libbase_comfort_jni.so \
+    system/lib/vendor.kpit.vps-V1-ndk.so \
+    system/lib64/vendor.kpit.vps-V1-ndk.so

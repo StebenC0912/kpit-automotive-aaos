@@ -7,6 +7,7 @@ package vendor.kpit.vps;
 // a fire-and-forget push from the vendor.kpit.vps-service daemon back into whichever client process
 // (hvac-service today) is subscribed, mirroring IHVACVehicleCallback's oneway convention on the
 // Java AIDL side (kpit/docs/13-aidl-callback-threading.md).
+@VintfStability
 interface IVpsCallback {
     oneway void onPropertyEvent(int propId, int areaId);
 }

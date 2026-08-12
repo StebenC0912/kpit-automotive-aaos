@@ -11,6 +11,7 @@ import vendor.kpit.vps.IVpsCallback;
 //
 // AIDL has no scalar out-parameter -- a single-element out array is the standard idiom for pairing
 // a value with the "did this succeed" boolean VpsDispatcher's own get*Property methods return.
+@VintfStability
 interface IVpsService {
     boolean getIntProperty(int propId, int areaId, out int[] value);
     boolean setIntProperty(int propId, int areaId, int value);

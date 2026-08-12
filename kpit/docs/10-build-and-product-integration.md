@@ -176,7 +176,9 @@ on `/system` per the "reverted" note above.
 stays on `/system` exactly as concluded above (it's still the coredomain caller); `libvps` moved
 to a new `vendor: true` daemon, `vendor.kpit.vps-service`, with `base_comfort_vhal_jni.cpp` now the
 Binder client this section describes. Not build/boot verified this session — see item 13's Stage 4
-writeup for the verification ceiling reached.
+writeup for the verification ceiling reached. **Update (2026-08-12):** the five build failures hit
+getting this through a full build are written up below in "four failures bringing VHAL-alignment
+Stage 4 ... through a full build."
 
 ### Boot lesson — `pack_emulator.sh` packaged plain `system.img` instead of `system-qemu.img`, causing a boot loop (2026-08-01)
 Symptom: guest boots the kernel, then `init` prints
@@ -370,6 +372,80 @@ final combined result once, at the end. Lesson: any hash/bit-packing helper in `
 64-bit-wide integer must use a fixed-width type (`uint64_t`), never `size_t` — this tree builds
 native code for both x86_64 and x86 in the same `m` invocation, and `size_t`'s width isn't portable
 across them.
+
+### Build lesson — five failures bringing VHAL-alignment Stage 4 (`vendor.kpit.vps`) through a full build (2026-08-12)
+Follow-up to the 2026-08-11 update in the "keeping `vendor: true`" note above, which split `libvps`
+into its own `vendor: true` daemon (`vendor.kpit.vps-service`) behind a new `stability: "vintf"` AIDL
+interface, with `libbase_comfort_jni` (still `/system`) as the Binder client — but left it
+build/boot-unverified. First full-build attempt hit four independent failures, one per build stage,
+each specific to standing up a *new* AIDL interface that crosses the system/vendor boundary for the
+first time in this tree (none of the existing HALs here — hvac/bluetooth's `service_manager`
+registrations — cross that boundary; they're plain Java `ServiceManager.addService`).
+
+1. **Artifact path requirement, again** — `car_generic_system.mk`'s strict `system.img` allowlist
+   (same mechanism as the two 2026-07-31 entries above) rejected `system/lib{,64}/vendor.kpit.vps-V1-ndk.so`.
+   Because `libbase_comfort_jni` (`/system`) links the AIDL interface's NDK-backend client lib,
+   Soong builds a *second*, system-partition variant of it alongside the vendor-partition one
+   `vendor.kpit.vps-service` itself links — same "new `/system` install path needs its own entry"
+   lesson as `libbase_comfort_jni.so` itself. Fix: added both paths next to the existing
+   `libbase_comfort_jni.so` entries in `kpit_apps.mk`'s `PRODUCT_ARTIFACT_PATH_REQUIREMENT_ALLOWED_LIST`.
+
+2. **Missing AIDL API freeze** — `checkapi_current` failed: `API dump for the current version of AIDL
+   interface vendor.kpit.vps does not exist.` Any `stability: "vintf"` `aidl_interface` must have a
+   frozen snapshot of its surface checked into the tree (`aidl_api/vendor.kpit.vps/current/`) so
+   future edits get diffed for backward compatibility instead of just trusting "it compiles" — this
+   interface never had one since it's brand new. Fix: ran the suggested
+   `m vendor.kpit.vps-update-api`, which generated that directory; committed it like any other AOSP
+   `aidl_api/` dump. Note: `unstable: true` is **not** a valid alternative fix here despite being the
+   error's second suggestion — it sets AIDL stability to `local`, and the `vps/aidl/Android.bp` header
+   comment already establishes `vintf` stability is required for libbinder to allow this interface
+   across the system/vendor boundary at all.
+
+3. **Missing `@VintfStability`** — next attempt failed in `aidl --dumpapi` itself:
+   `vendor.kpit.vps.IVpsCallback does not have VINTF level stability (marked @VintfStability)`.
+   Beyond the module-level `stability: "vintf"` in `Android.bp`, each individual `.aidl` file needs
+   the same claim written into its own source as a deliberate double-declaration (so stability can't
+   silently change via a `Android.bp`-only edit). Fix: added `@VintfStability` immediately above both
+   `interface IVpsCallback` (`vps/aidl/vendor/kpit/vps/IVpsCallback.aidl`) and `interface IVpsService`
+   (`IVpsService.aidl`) — neither had been annotated.
+
+4. **`neverallow` collision: `dumpstate` vs. the `hal_attribute_service` macro** — `sepolicy_neverallows_vendor`
+   failed: `neverallow ... violated by allow dumpstate vps_service:service_manager { find };`. Two
+   AOSP policies fight over `vps_service` here: `system/sepolicy/public/dumpstate.te` grants
+   `dumpstate` blanket `find` on every `service_manager_type` *except* types tagged `hal_service_type`
+   (among a few others), while `hal_attribute_service(hal_vps, vps_service)`
+   (`system/sepolicy/public/te_macros:753`, called from `hal_vps.te:18`) auto-generates a `neverallow`
+   restricting `find` on `vps_service` to just the `hal_vps` client/server domains plus
+   `atrace`/`shell`/`system_app`/`traceur_app` — `dumpstate` isn't on that list. `vps_service` was
+   declared `type vps_service, service_manager_type;` only, missing the `hal_service_type` tag every
+   real HAL service in `system/sepolicy/public/service.te` carries (e.g. `hal_vehicle_service,
+   protected_service, hal_service_type, service_manager_type;`), so `dumpstate`'s blanket-minus-exclusions
+   grant swept it in instead of excluding it. Fix: retagged it
+   `type vps_service, protected_service, hal_service_type, service_manager_type;` in `hal_vps.te`,
+   matching the real convention. Lesson: `hal_attribute(vps)` + `hal_attribute_service(hal_vps,
+   vps_service)` alone don't fully replicate a "real" HAL service type — the type declaration itself
+   also needs `protected_service, hal_service_type`, or unrelated blanket grants elsewhere in base
+   policy (not just `dumpstate.te` — any policy written against the `hal_service_type` attribute) will
+   see it as a plain, unprotected `service_manager_type`.
+
+5. **VINTF compatibility matrix never updated** — build got all the way to `assemble_vintf`'s
+   compatibility check, which failed: `vendor.kpit.vps.IVpsService/default (@1)` is `in the device
+   manifest but not specified in framework compatibility matrix`. `vendor.kpit.vps-service`'s
+   `vintf_fragments: ["vps-service.xml"]` (`vps/service/Android.bp:19`) puts the HAL into the *device*
+   manifest (the vendor side's "here's what I provide" list), but nothing on the framework side had a
+   matching *compatibility matrix* entry (the system side's "here's what I expect" list) — the two
+   have to agree for every HAL. This is a device-specific HAL (the error's own suggested fix #4), so
+   it needs its own matrix fragment rather than an edit to a shared platform matrix. Fix: added
+   `vps/service/vps-service-matrix.xml` (`type="framework" level="8"`, matching this tree's
+   `PLATFORM_VERSION=14` and the sibling `device_framework_matrix_product.xml` in
+   `device/generic/car/common/`) declaring `vendor.kpit.vps.IVpsService/default` `optional="true"`,
+   wired via `DEVICE_PRODUCT_COMPATIBILITY_MATRIX_FILE += vendor/kpit/automotive/vps/service/vps-service-matrix.xml`
+   in `kpit_apps.mk` — same mechanism `device/generic/car/common/car.mk` uses for its own
+   `device.generic.car.emulator.IVehicleBus` HAL.
+
+Full build not yet re-confirmed clean end-to-end after fix #5; re-run and boot-test still outstanding
+(see Outstanding list below). Re-freezing the API (`vendor.kpit.vps-update-api`, lesson #2) will be
+needed again any time `IVpsService.aidl`/`IVpsCallback.aidl` change.
 
 ### Outstanding after this section
 1. Implement Seat (AIDL, manager/service, VPS handler) and WiFi

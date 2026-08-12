@@ -9,13 +9,15 @@ package {
 // libbinder rejects a non-vintf-stable AIDL interface used across the system/vendor partition
 // boundary. Left unversioned/unfrozen (no versions_with_info) since this is a local, still-evolving
 // vendor interface, not one being published for other trees to depend on -- the NDK backend target
-// this generates is vendor.kpit.vps-ndk.
+// this generates is vendor.kpit.vps-V1-ndk (unversioned/unfrozen interfaces are still built as
+// version 1 under the hood, so the NDK backend module name carries the -V1- suffix).
 // -----------------------------------------------------------------------------------------------
 aidl_interface {
     name: "vendor.kpit.vps",
     vendor_available: true,
     srcs: ["vendor/kpit/vps/*.aidl"],
     stability: "vintf",
+    owner: "kpit",
     backend: {
         java: {
             enabled: false,

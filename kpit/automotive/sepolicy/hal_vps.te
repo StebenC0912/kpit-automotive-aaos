@@ -8,8 +8,13 @@
 # share a type with).
 
 # service_manager type for vendor.kpit.vps.IVpsService/default, same style as the existing
-# hvac_service/bluetooth_service declarations below.
-type vps_service, service_manager_type;
+# hvac_service/bluetooth_service declarations below. Tagged hal_service_type (matching
+# hal_vehicle_service and every other HAL service in system/sepolicy/public/service.te) so
+# dumpstate.te's blanket "find all service_manager_type" grant excludes it -- otherwise that
+# grant collides with hal_attribute_service's auto-generated neverallow below, which restricts
+# find on vps_service to hal_vps_client/hal_vps_server (+ atrace/shell/system_app/traceur_app),
+# not dumpstate.
+type vps_service, protected_service, hal_service_type, service_manager_type;
 
 # Declares hal_vps / hal_vps_client / hal_vps_server attributes, then grants:
 #   - hal_vps_client (system_app, via hal_client_domain below): find on vps_service

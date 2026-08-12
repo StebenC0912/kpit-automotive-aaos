@@ -68,7 +68,7 @@ cc_library_shared {
     shared_libs: [
         "liblog",
         "libbinder_ndk",
-        "vendor.kpit.vps-ndk",
+        "vendor.kpit.vps-V1-ndk",
     ],
     cflags: [
         "-Wall",
