@@ -298,33 +298,51 @@
    - **Not yet done:** rebuild + boot-test against the emulator to confirm `adb shell dumpsys
      hvac_service` and `adb shell dumpsys hvac_service --set PROP_TEMP -a 1 -f 24.0` behave as designed.
 5. **`vspManagerTool` — standalone Windows GUI, replaces the earlier on-device "kitchen sink" app
-   idea** — no persistence exists anywhere in this repo today (no Room/SQLite/SharedPreferences/file
-   I/O; confirmed by full-repo search 2026-08-07) and there's no way to watch or set HVAC values
-   except one-shot adb commands run by hand. Decided 2026-08-07 to build this as a **host-side Java
-   GUI tool that runs on the developer's Windows machine, not an Android app inside the
-   emulator/device** — no new AIDL, no new on-device app, no Room DB in-emulator. Plan (not
-   implemented; item 4's on-device `dump()` half is now done, see above):
-   - Plain Java desktop app (Swing/JavaFX), packaged as a runnable jar, run on Windows against an
-     emulator/device reachable over `adb` (same adb the host already uses to talk to the emulator).
-   - **Transport is adb only** — the tool shells out via `ProcessBuilder`, it does not open its own
-     socket to the device. Depends entirely on item 4's `dump()` override existing on-device first
-     (now done).
-   - **Watch:** polls `adb shell dumpsys hvac_service` on a timer (e.g. every 300–500ms), parses the
-     `--get` output format from item 4, diffs it against the previous poll, and updates a live table +
-     append-only log/history pane in the GUI. This is polling dressed up as "watching," not true
-     push — flagged explicitly since `dumpsys`/`dump()` has no subscribe mechanism to build real push
-     on top of (the alternative considered and rejected for now: a TCP-socket companion service on
-     the device pushed to over `adb forward`, which would remove the polling lag at the cost of a new
-     on-device component).
-   - **Set:** sends `adb shell dumpsys hvac_service --set <PROP_NAME> -a <area> -f <value>` for
-     user-driven writes from the GUI's per-property fields/buttons.
-   - **Persistence:** local to the tool itself (e.g. a simple file/embedded DB on the Windows side for
-     history), not inside the emulator — separate concern from item 4/on-device state, which stays
-     exactly as volatile as it is today (`FakeHvacBackend`'s `mStore`, Stage 3, is still lost on
-     process restart).
-   - **Scope:** HVAC first (`hvac_service`'s `GLOBAL_PROPS`/`PER_SEAT_PROPS`); extending the same
-     `dump()` pattern to `IviBluetoothService` for Bluetooth state is a stretch goal, not required for
-     v1.
+   idea. ✅ Implemented and verified 2026-08-13.** No persistence existed anywhere in this repo
+   before this (no Room/SQLite/SharedPreferences/file I/O; confirmed by full-repo search
+   2026-08-07) and there was no way to watch or set HVAC values except one-shot adb commands run
+   by hand. Decided 2026-08-07 to build this as a **host-side Java GUI tool that runs on the
+   developer's machine, not an Android app inside the emulator/device** — no new AIDL, no new
+   on-device app, no Room DB in-emulator; built against item 4's on-device `dump()` half once that
+   landed. Lives at `kpit/tools/vspManagerTool/` (`com.kpit.vspmanager`), outside the
+   Soong-built `automotive/` tree entirely (no `Android.bp`, so `lunch`/`m` never touches it) —
+   see the module's own `README.md` for build/run instructions.
+   - Plain Java + Swing, packaged as a runnable jar via a hand-rolled `javac`+`jar` build
+     (`build.bat` for the Windows target, `build.sh` for Linux sanity builds) — **zero external
+     dependencies**, no Gradle/Maven. Chose Swing over the plan's original Swing/JavaFX either-or
+     since JavaFX needs a separate SDK from JDK 11 onward and Swing ships in every JDK, keeping
+     the tool a single jar with nothing to install beyond a JRE.
+   - **Transport is adb only**, exactly as planned — `AdbClient` shells out via `ProcessBuilder`,
+     no custom socket. Depends entirely on item 4's `dump()` override existing on-device.
+   - **Watch:** `PropertyPoller` polls `adb shell dumpsys hvac_service` on a background thread
+     every ~400ms, `DumpParser` parses the `--get` text format from item 4 (including its
+     single-line `ERROR native VHAL bridge not ready` case, handled as a distinct
+     not-ready state rather than "zero properties changed"), diffs against the previous poll, and
+     publishes to a live `JTable` (`PropertyTableModel`) plus an append-only history log
+     (`HistoryLogPane`) on the EDT. Still polling dressed up as "watching," not true push, same
+     tradeoff as originally planned.
+   - **Set:** sends `adb shell dumpsys hvac_service --set <PROP_NAME> -a <area> -f <value>`.
+     Implemented as one shared control (select a table row, edit its value in a field, click
+     **Set**) plus a dedicated **Unlock Vehicle State (5.0)** button, rather than a button
+     embedded in every row — a deliberate simplification to avoid a custom `JTable` cell
+     editor/renderer for v1; the plan's "per-property fields/buttons" phrasing didn't mandate
+     literal per-row buttons and this covers the same user action.
+   - **Persistence: none for v1**, a scope narrowing from the original plan (which floated a
+     simple file/embedded DB on the host side for history). History lives only in the in-memory
+     `HistoryLogPane` for the running session — on-device state stays exactly as volatile as it
+     was before (`FakeHvacBackend`'s `mStore`, Stage 3, still lost on process restart), and this
+     tool adds no new persistence anywhere either. Revisit if session-spanning history turns out
+     to matter in practice.
+   - **Scope:** HVAC only, as planned; extending the same `dump()` pattern to `IviBluetoothService`
+     for Bluetooth state remains a stretch goal, not built.
+   - **Bug found and fixed during testing (2026-08-13):** `PropertyTableModel.applySnapshots()`
+     originally called `fireTableDataChanged()` on every poll tick, which cleared the `JTable`'s
+     selection — `JTable.tableChanged()` wipes selection whenever it receives an `UPDATE` event
+     with `lastRow == Integer.MAX_VALUE` and `column == ALL_COLUMNS`, exactly what
+     `fireTableDataChanged()` sends. Symptom: clicking a row while watching showed it selected for
+     under a second before reverting to "no row selected," making the Set flow unusable while
+     watching was on. Fixed by firing a bounded `fireTableRowsUpdated(0, rowCount - 1)` instead,
+     which repaints every row without matching that clear-selection condition.
    - **Full property surface (14 rows the GUI's table must cover, discussed 2026-08-10, prop ids
      updated 2026-08-10 for Stage 2's bit-packed scheme — see the "HVAC domain" section's item 13
      above)** — exactly what `AllianceCarHvacService.handleDumpGet` emits, nothing more. Since Stage
@@ -406,8 +424,8 @@ picking the work back up.
    `hvac-service`'s build classpath entirely, not just from its source code.
 4. Seat domain, WiFi placeholder, `SeatHandler` (items 1–3 above) — unstarted, pre-dates this
    session.
-5. `vspManagerTool` (item 5 above) — planned, not implemented; the on-device `dump()` half it
-   depends on is done.
+5. ~~`vspManagerTool` (item 5 above) — planned, not implemented~~ — **done, see the
+   2026-08-13 checkpoint below.**
 
 ### Session state as of 2026-08-11
 Closes item 2 from the checkpoint above: **VHAL-alignment Stage 4 — real Binder HAL boundary —
@@ -463,3 +481,28 @@ and refreshed its round-trip diagram, which still described Stage 3's in-process
 daemon yet — only its presence was confirmed, not that HVAC commands/events still round-trip
 correctly now that they cross the new `vendor.kpit.vps` AIDL boundary instead of running in-process.
 That's the next verification step.
+
+### Session state as of 2026-08-13
+Closes item 5 from the 2026-08-10 checkpoint's "not done" list: **`vspManagerTool` implemented
+and committed to `main`** (full writeup under item 5 above). New standalone Java/Swing desktop
+app at `kpit/tools/vspManagerTool/`, outside the Soong-built tree entirely — watches/sets HVAC
+VHAL properties over `adb` against item 4's `dumpsys hvac_service --get`/`--set` entry point, per
+the plan drafted 2026-08-07. Two scope decisions diverged from that original plan during
+implementation: no per-tool persistence was actually built (in-memory session log only, not the
+floated file/embedded-DB history), and Set is one shared selected-row control rather than a
+button embedded in every table row — both noted inline in item 5 above.
+
+**Verification ceiling reached this session is unusually high for this doc:** unlike almost
+everything else recorded here (host-side `g++`/gtest compiles, or hand-review against real AOSP
+references with no build environment available), this was **built and run for real** — the user
+built `vspManagerTool.jar` on their own machine and exercised it against a live emulator: started
+watching, confirmed the 14-row table populates and updates in place, used the Unlock Vehicle
+State button and the per-row Set control, and confirmed round-trip values land back in both the
+table and the history log. One real bug surfaced by that testing (the `JTable` selection getting
+cleared every poll tick — see item 5 above) was found and fixed in the same pass.
+
+**Not done:** persisting `vspManagerTool`'s history across runs (deliberately out of scope for
+v1, see item 5); extending its `dump()`-polling pattern to `IviBluetoothService` for Bluetooth
+state (stretch goal, not required); everything already tracked as outstanding for the on-device
+`vendor.kpit.vps-service` path itself (`11-testing-hvac.md` Step 1–3's full re-walk, unrelated to
+this tool and unchanged by it).

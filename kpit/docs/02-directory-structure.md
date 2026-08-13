@@ -71,3 +71,21 @@ vendor/kpit/automotive/
             Android.bp)                                         is its Binder client. Stage 4, not build/
                                                                   boot verified — see 03-implementation-status.md #13
 ```
+
+Sibling of `automotive/` and `docs/` under `vendor/kpit/` (not nested inside the tree above, and
+not Soong-built — no `Android.bp` anywhere under it):
+
+```
+vendor/kpit/
+└── tools/
+     └── vspManagerTool/                       ✅ done, see 03-implementation-status.md #5
+          ├── README.md, build.bat, build.sh   plain javac+jar, zero external dependencies
+          ├── src/com/kpit/vspmanager/
+          │    ├── Main.java
+          │    ├── adb/ (AdbClient, AdbException)
+          │    ├── model/ (HvacProperty, PropertySnapshot, DumpResult, SetResult)
+          │    ├── parse/ (DumpParser)
+          │    ├── poll/ (PropertyPoller, PollListener)
+          │    └── ui/ (MainFrame, PropertyTableModel, HistoryLogPane)
+          └── test/com/kpit/vspmanager/parse/ (DumpParserTest)
+```
